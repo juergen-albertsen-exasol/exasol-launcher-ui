@@ -22,10 +22,11 @@ import (
 const usageExitCode = 2
 
 type options struct {
-	port   int
-	open   bool
-	exasol string
-	webDir string
+	port       int
+	open       bool
+	exasol     string
+	webDir     string
+	deployment string
 }
 
 type environment struct {
@@ -76,6 +77,8 @@ func parseOptions(args []string, stderr io.Writer) (options, error) {
 		"launcher executable, looked up on PATH unless it is a path")
 	flags.StringVar(&opts.webDir, "web-dir", "",
 		"serve the web application from this directory instead of the embedded build")
+	flags.StringVar(&opts.deployment, "deployment", "",
+		"deployment whose overview the access URL opens")
 
 	if err := flags.Parse(args); err != nil {
 		return opts, err
@@ -112,10 +115,15 @@ func serve(ctx context.Context, opts options, env environment) error {
 	}
 
 	token := server.NewToken()
+	accessPath := "/"
+	if opts.deployment != "" {
+		accessPath = "/deployments/" + opts.deployment
+	}
+
 	accessURL := (&url.URL{
 		Scheme:   "http",
 		Host:     address.String(),
-		Path:     "/",
+		Path:     accessPath,
 		RawQuery: url.Values{"token": {token}}.Encode(),
 	}).String()
 	handler := server.NewGuard(token, address.Port).

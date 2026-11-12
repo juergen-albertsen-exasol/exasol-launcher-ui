@@ -1,0 +1,28 @@
+<div class="deployments">
+  <header class="deployments__brand">
+    <div class="deployments__logo" role="img" aria-label="Exasol"></div>
+  </header>
+  <main class="deployments__content">
+    <h1 class="deployments__title">Deployments</h1>
+    <div class="deployments__tiles">
+      @if (listError(); as error) {
+      <p class="deployments__message deployments__message--error">Cannot list deployments: {{ error }}</p>
+      } @else if (deployments(); as deployments) { @for (deployment of deployments; track deployment.name) {
+      <a class="deployments__tile" [routerLink]="overviewPath(deployment.name)">
+        <span class="deployments__tile-top">
+          <span class="deployments__status" [class.deployments__status--ready]="deployment.status === readyStatus">
+            {{ deployment.status }}
+          </span>
+          <span class="deployments__preset">{{ deployment.infrastructure }}</span>
+        </span>
+        <span class="deployments__name">{{ deployment.name }}</span>
+        <span class="deployments__path">{{ deployment.path }}</span>
+      </a>
+      } @empty {
+      <p class="deployments__message">
+        The launcher lists no deployments. Create one with <code>exasol install</code>, then reload this page.
+      </p>
+      } }
+    </div>
+  </main>
+</div>

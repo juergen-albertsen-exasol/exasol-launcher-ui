@@ -1,0 +1,25 @@
+<div class="deployment-selector">
+  <span class="deployment-selector__label">Deployment</span>
+  <mat-select
+    class="deployment-selector__select"
+    aria-label="Deployment"
+    panelClass="exa-select-field"
+    placeholder="None"
+    [value]="selectedName()"
+    [disabled]="!deployments()?.length"
+    (selectionChange)="select($event)"
+  >
+    @for (deployment of deployments() ?? []; track deployment.name) {
+    <mat-option [value]="deployment.name">{{ deployment.name }}</mat-option>
+    }
+  </mat-select>
+  <button
+    class="deployment-selector__refresh"
+    type="button"
+    aria-label="Refresh deployments"
+    matTooltip="Refresh deployments"
+    (click)="refresh()"
+  >
+    <i class="fa-solid fa-rotate"></i>
+  </button>
+</div>

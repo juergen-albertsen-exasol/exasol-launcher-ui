@@ -1,0 +1,117 @@
+.deployments {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    padding: 0 20px;
+    background-color: var(--primary-accent);
+    box-shadow: 0 0 10px -7px #000;
+
+    // Like the layout's drawer: Exasol green in the light theme, the raised surface in the dark one.
+    :host-context(.dark-theme) & {
+      background-color: var(--background-secondary);
+    }
+  }
+
+  &__logo {
+    width: 80px;
+    height: 22px;
+    background: url(/assets/icons/logo_full_light.svg) no-repeat left center / contain;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 1280px;
+    padding: 2rem 30px;
+  }
+
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 500;
+  }
+
+  &__tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: 1.5rem;
+  }
+
+  &__tile {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 16px 16px 21px;
+    border-radius: 6px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    box-shadow:
+      1px 1px 7px -4px rgba(0, 0, 0, 0.87),
+      -1px -1px 2px -2px var(--deployment-shadow-color);
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      outline: none;
+      box-shadow:
+        1px 1px 7px -4px rgba(0, 0, 0, 0.87),
+        -1px -1px 2px -2px var(--deployment-shadow-color),
+        inset 6px 0 0 var(--primary-accent),
+        inset -6px 0 0 var(--primary-accent);
+    }
+  }
+
+  &__tile-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__status {
+    color: var(--text-secondary);
+    font-size: 12px;
+
+    &--ready {
+      color: var(--primary-accent);
+    }
+  }
+
+  &__preset {
+    padding: 0 8px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  &__name {
+    font-size: 24px;
+    font-weight: 500;
+  }
+
+  &__path {
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__message {
+    grid-column: 1 / -1;
+    color: var(--text-secondary);
+
+    &--error {
+      color: var(--text-primary);
+      overflow-wrap: anywhere;
+    }
+  }
+}

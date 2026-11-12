@@ -20,7 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var accessURLPattern = regexp.MustCompile(`http://127\.0\.0\.1:(\d+)/\?token=([A-Za-z0-9_-]+)`)
+var accessURLPattern = regexp.MustCompile(
+	`http://127\.0\.0\.1:(\d+)/\S*\?token=([A-Za-z0-9_-]+)`)
 
 type startedServer struct {
 	accessURL string
@@ -295,6 +296,20 @@ func TestMissingWebDirFailsStartup(t *testing.T) {
 
 	assert.NotEqual(t, 0, exitCode)
 	assert.Contains(t, stderr.String(), missing)
+}
+
+func TestDeploymentFlagOpensItsOverview(t *testing.T) {
+	t.Parallel()
+
+	started := startServer(t, environment{}, "--port", "0", "--deployment", "my test")
+
+	parsed, err := url.Parse(started.accessURL)
+	require.NoError(t, err)
+	assert.Equal(t, "/deployments/my test", parsed.Path)
+
+	status, header, _ := get(t, started.accessURL)
+	assert.Equal(t, http.StatusSeeOther, status)
+	assert.Equal(t, "/deployments/my%20test", header.Get("Location"))
 }
 
 func TestUnknownFlagFailsStartup(t *testing.T) {

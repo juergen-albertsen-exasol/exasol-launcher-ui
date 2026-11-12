@@ -16,6 +16,7 @@ const (
 
 type deploymentSummary struct {
 	Name           string `json:"name"`
+	Path           string `json:"path"`
 	Status         string `json:"status"`
 	Infrastructure string `json:"infrastructure"`
 	Installation   string `json:"installation"`
@@ -70,6 +71,7 @@ func (a *api) listDeployments(response http.ResponseWriter, request *http.Reques
 	for _, deployment := range deployments {
 		summaries = append(summaries, deploymentSummary{
 			Name:           deployment.Name,
+			Path:           deployment.Path,
 			Status:         deployment.Status,
 			Infrastructure: deployment.Infrastructure,
 			Installation:   deployment.Installation,

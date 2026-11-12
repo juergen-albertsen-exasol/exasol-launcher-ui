@@ -81,8 +81,14 @@ func TestDeploymentsMatchTheLauncherListing(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.Code)
 	assert.Equal(t, "application/json", response.Header().Get("Content-Type"))
 	assert.Equal(t, []deploymentSummary{
-		{Name: "default", Status: "database_ready", Infrastructure: "local", Installation: "local"},
-		{Name: "test", Status: "stopped", Infrastructure: "aws", Installation: "exasol"},
+		{
+			Name: "default", Path: "/deployments/default", Status: "database_ready",
+			Infrastructure: "local", Installation: "local",
+		},
+		{
+			Name: "test", Path: "/deployments/test", Status: "stopped",
+			Infrastructure: "aws", Installation: "exasol",
+		},
 	}, decode[[]deploymentSummary](t, response))
 }
 

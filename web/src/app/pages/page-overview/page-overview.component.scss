@@ -1,3 +1,165 @@
+@import 'colors';
+
 .overview {
-  gap: 1rem;
+  gap: 24px;
+  padding-top: 24px;
+
+  &__deployment {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    min-height: 120px;
+    padding: 12px 16px 12px 15px;
+    border-left: 6px solid var(--primary-accent);
+    border-right: 6px solid var(--primary-accent);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    box-shadow:
+      0 1px 4px -2px #142039,
+      -1px -1px 2px -2px #9aa4b7;
+  }
+
+  // The Administration UI's database icon, the same in both themes.
+  &__icon {
+    flex: 0 0 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    border-radius: 100%;
+    background-color: #e7edfd;
+    color: #5b76f6;
+    font-size: 1.25rem;
+  }
+
+  &__identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__state {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  &__name {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  &__path {
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__aside {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+  }
+
+  &__status {
+    color: var(--text-secondary);
+
+    &--ready {
+      color: var(--primary-accent);
+    }
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 30px 20px 20px;
+    border: 1px solid var(--primary-accent);
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    box-shadow: inset 0 6px 12px -10px #000;
+  }
+
+  &__box {
+    position: relative;
+    padding: 15px;
+    border: 1px solid var(--frame-color);
+    border-radius: 5px;
+    font-size: 0.88rem;
+
+    &::before {
+      content: attr(data-label);
+      position: absolute;
+      top: -10px;
+      left: 15px;
+      padding: 0 10px;
+      background-color: var(--background-secondary);
+      color: var(--text-secondary);
+      font-size: 0.81rem;
+    }
+  }
+
+  &__rows {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 12px;
+    margin: 0;
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__reachability {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__state-word {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    &--ok {
+      color: var(--primary-accent);
+    }
+
+    &--error {
+      color: $red;
+    }
+  }
+
+  &__dot {
+    position: relative;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-radius: 100%;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      border-radius: 100%;
+      background-color: currentColor;
+    }
+  }
+
+  &__error {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  &__message {
+    color: var(--text-secondary);
+
+    &--error {
+      color: var(--text-primary);
+      overflow-wrap: anywhere;
+    }
+  }
 }
