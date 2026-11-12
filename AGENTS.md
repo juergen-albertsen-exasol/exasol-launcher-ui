@@ -47,6 +47,12 @@ match the server. Database passwords never reach the browser or the logs.
 
 ## Repository Workflow
 
+Draft every feature's screens in Claude Design before specifying it: on the
+[Exasol Local](https://claude.ai/artifact/UQ4cH4hUXciqeB2kzWMRQa) canvas, built
+with the [Exasol Admin UI](https://claude.ai/artifact/WJ3Tm2ihMri7fiUcJtKRKj)
+design system (light theme first). Iterate there until the design is agreed, then
+implement what it shows.
+
 Use OpenSpec for every non-trivial change: propose with `/opsx:propose`,
 implement with `/opsx:apply`, and archive with `/opsx:archive` before
 committing the change's OpenSpec artifacts. Write requirements as positive,
@@ -63,8 +69,26 @@ constraints, or workarounds, never to restate code or refer to tasks or
 OpenSpec artifacts. Keep documentation concise, link instead of duplicating,
 and avoid em dashes.
 
+## Layout
+
+- `cmd/exasol-local-ui/`: the command, its flags, and startup.
+- `internal/server/`: HTTP server, session token and origin checks, the
+  `/api/v1` handlers, and serving the web application.
+- `internal/launcher/`: the launcher's JSON CLI client; `launchertest/` holds
+  the fake launcher executable tests use.
+- `internal/database/`: reading `secrets.json`, pinging the database, password
+  redaction.
+- `internal/webapp/`: embeds the Angular build from `web/`.
+- `web/`: the Angular application. The `go.mod` there only keeps Go tooling
+  out of `node_modules`.
+
+`task build`, `task test`, and `task lint` must pass for every commit; the
+[README](README.md) covers setup (including the GitHub Packages token) and the
+development loop.
+
 ## Status
 
-The repository contains no application code yet. Start with an OpenSpec
-change that scaffolds the server and the Angular app; the planned order after
-that is sidecar management, a SQL editor, and health views.
+The first change, `add-app-scaffold`, provides the server, the launcher and
+database integration, and the app shell with the deployment tiles and the
+overview page. The planned order after it is sidecar management, a SQL editor,
+and health views, each drafted on the design canvas first.
