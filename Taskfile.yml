@@ -1,0 +1,39 @@
+version: '3'
+
+vars:
+  BINARY: bin/exasol-local-ui
+  DEV_TOOL: go tool -modfile=tools/devtools/go.mod
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - task --list
+
+  build:
+    desc: Build the exasol-local-ui binary
+    cmds:
+      - go build -o {{.BINARY}} ./cmd/exasol-local-ui
+
+  test:
+    desc: Run the unit tests
+    cmds:
+      - go test ./...
+
+  lint:
+    desc: Run the linters and check that the Go modules are tidy
+    cmds:
+      - '{{.DEV_TOOL}} golangci-lint run ./...'
+      - go mod tidy
+      - go -C tools/devtools mod tidy
+      - git diff --exit-code go.mod go.sum tools/devtools/go.mod tools/devtools/go.sum
+
+  lint-fix:
+    desc: Run the linters and apply automatic fixes
+    cmds:
+      - '{{.DEV_TOOL}} golangci-lint run ./... --fix'
+
+  dev:
+    desc: Run the server from source
+    cmds:
+      - go run ./cmd/exasol-local-ui {{.CLI_ARGS}}
