@@ -1,0 +1,201 @@
+$background-primary: #1d1d1d;
+$background-secondary: #282828;
+$background-disabled: $black4;
+$background-darker: darken(#0a3e52, 3%);
+
+$primary-accent: #00a46c;
+$primary-accent-darker: darken($primary-accent, 8%);
+$primary-accent-darkest: darken($primary-accent, 13%);
+$primary-accent-lightest: rgba($primary-accent, 0.03);
+$primary-accent-lightest2: rgba($primary-accent, 0.08);
+$primary-accent-lightest2-selected: rgba($primary-accent, 0.15);
+$primary-accent-xlightest: rgba($primary-accent, 0.08);
+$frame-color: $black4;
+$frame-text-color: lighten($black3, 10%);
+
+$secondary-accent: #e6ff94;
+$accent-color: #77d472;
+$accent-color2: #3182ce;
+$accent-color3: #4c6c7b;
+
+$text-primary: lighten($grey, 15%);
+$text-primary-lite: lighten($grey, 25%);
+$text-secondary: $darker-grey;
+$text-secondary-darken: darken($darker-grey, 10%);
+
+:root {
+  .dark-theme {
+    --background-primary: #{$background-primary};
+    --background-secondary: #{$background-secondary};
+    --background-disabled: #{darken($background-disabled, 13)};
+    --color-disabled: #{$background-disabled};
+
+    --primary-accent: #{$primary-accent};
+    --primary-accent-darker: #{$primary-accent-darker};
+    --primary-accent-darkest: #{$primary-accent-darkest};
+    --primary-accent-lightest: #{$primary-accent-lightest};
+    --primary-accent-lightest2: #{$primary-accent-lightest2};
+    --primary-accent-lightest3: #{$primary-accent-lightest2};
+    --primary-accent-xlightest: #{$primary-accent-xlightest};
+    --primary-accent-selected: #{$primary-accent-lightest2};
+    --row-el-selected: #{$primary-accent-lightest2-selected};
+    --secondary-accent: #{$secondary-accent};
+
+    --accent-color: #{$accent-color};
+    --accent-color2: #{$accent-color2};
+    --accent-color4: #{$accent-color3};
+
+    --text-primary: #{$text-primary};
+    --text-primary-lite: #{$text-primary-lite};
+    --text-secondary: #{$text-secondary};
+    --text-secondary-darken: #{$text-secondary-darken};
+
+    --frame-color: #{$frame-color};
+    --frame-text-color: #{$frame-text-color};
+    --background-darker: #{$background-secondary};
+    --defaultToolTipBckColor: #{rgba($primary-accent, 1)};
+    --usage-led-off: #{$primary-accent-lightest2};
+    --usage-led-lowest: #{rgba($accent-color, 0.85)};
+    --deployment-shadow-color: #{$accent-color};
+    --table-row-separator-color: #{$frame-text-color};
+    --table-background-odd-row: #{$primary-accent-lightest};
+    --modal-header-separator-color: #{$black4};
+    --table-wrapper-bck-color: #{$background-secondary};
+
+    --linear-gradient-updated-error: linear-gradient(180deg, #282828 0%, rgba(215, 59, 35, 0.15) 100%);
+
+    div {
+      scrollbar-color: $primary-accent-darker transparent !important;
+      &::-webkit-scrollbar-thumb {
+        background: $primary-accent-darker !important;
+      }
+      &.transparent-scroll-bar {
+        scrollbar-color: color-mix(in srgb, var(--primary-accent-darker) 20%, transparent) transparent !important;
+      }
+    }
+
+    exa-layout {
+      .nav-toggler {
+        background-color: var(--primary-accent-darker) !important;
+      }
+    }
+
+    exa-database-icon {
+      &[ng-reflect-status='running'] {
+        div[data-testid='statusIcon'] {
+          color: var(--primary-accent) !important;
+          background-color: #{$primary-accent-lightest2} !important;
+        }
+      }
+      &[ng-reflect-status='stopped'] {
+        div[data-testid='statusIcon'] {
+          color: var(--text-secondary-darken) !important;
+          background-color: var(--background-secondary) !important;
+        }
+      }
+    }
+    exa-database-card {
+      .content {
+        &__details {
+          & > ul {
+            box-shadow: -3px 0px 6px -7px var(--accent-color) !important;
+          }
+        }
+      }
+    }
+    .db-info-panel {
+      .draggable-edge__handle {
+        background-color: var(--primary-accent) !important;
+      }
+      exa-db-info-panel {
+        box-shadow: inset 0px 6px 12px -10px #000 !important;
+      }
+    }
+    .exa-modal-base-new {
+      header {
+        border-bottom: 1px solid $black3;
+        &.with-tabs {
+          border-color: var(--primary-accent-darker);
+        }
+      }
+      footer {
+        background-color: rgba($primary-accent, 0.03);
+      }
+    }
+    .exa-modal:has(.exa-modal-base-new) {
+      .mat-mdc-dialog-surface {
+        box-shadow:
+          0px 0px 2px 0px $black3,
+          0px 0px 0px 2px rgba($primary-accent, 0.45),
+          0px 10px 30px 10px rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    // material table
+    exa-gtable-interactive-rows,
+    exa-gtable {
+      header {
+        background-color: $black3 !important;
+      }
+      .table-wrapper {
+        background-color: $black3;
+      }
+      table {
+        &.mat-mdc-table {
+          background-color: $black3;
+        }
+        tbody {
+          tr {
+            &:nth-child(odd) {
+              // filter: saturate(0.5), drop-shadow(0px 0px 1px #DEDEDE) brightness(0.985);
+            }
+          }
+        }
+      }
+      exa-empty-databases {
+        .empty-base {
+          background-image: url('/assets/icons/no-databases-dark-theme.svg') !important;
+        }
+      }
+      .empty-table-content {
+        .empty-base {
+          opacity: 0.35;
+        }
+      }
+    }
+
+    // material fields
+    .mat-mdc-select-panel {
+      &.exa-select-field {
+        @include customizeSliderToggleColor($primary-accent, $disableRipple: true);
+      }
+      .mat-mdc-option:hover:not(.mdc-list-item--disabled) {
+        background-color: $black3;
+      }
+    }
+    .mat-mdc-form-field {
+      .mat-mdc-text-field-wrapper {
+        .mdc-floating-label,
+        .mdc-floating-label--float-above {
+          color: var(--text-secondary);
+        }
+      }
+      .mdc-text-field--filled.mdc-text-field--disabled {
+        background-color: rgba($background-disabled, 0.7);
+        opacity: 0.7;
+      }
+    }
+
+    exa-loader {
+      .loader {
+        background-image: url('/assets/icons/exasol-loader-w512.svg');
+      }
+    }
+
+    .exa-banner-notification {
+      .card {
+        box-shadow: 0 0 10px -2px #000 !important;
+      }
+    }
+  } // end dark-theme
+}

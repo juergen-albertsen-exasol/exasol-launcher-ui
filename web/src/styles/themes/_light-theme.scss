@@ -1,0 +1,139 @@
+@import '../colors';
+@import '../mixins';
+@import '../variables';
+
+$background-primary: #f8f9fe;
+$background-secondary: $white;
+$background-disabled: $xlight-grey;
+// $background-disabled: lighten($background-disabled, 5);
+$background-darker: $darker-white;
+
+$primary-accent: $exa-green;
+$primary-accent-darker: $exa-light-green;
+$primary-accent-darkest: darken($primary-accent, 15%);
+$primary-accent-lightest: rgba($exa-green, 0.3);
+$primary-accent-lightest2: lighten(rgba($exa-green, 0.3), 60);
+$primary-accent-lightest3: lighten(rgba($exa-green, 0.3), 50);
+$primary-accent-lightest-selected: rgba($exa-green, 0.4);
+$primary-accent-xlightest: $light-azure;
+$frame-color: #dee2e7;
+$frame-text-color: darken($frame-color, 10%);
+$unchecked-checkbox: #666;
+
+$accent-color: #77d472;
+$accent-color2: #3182ce;
+$accent-color4: #4c6c7b;
+
+$text-primary: $black3;
+$text-primary-lite: $black4;
+$text-secondary: #a0aebf;
+$text-secondary-darken: #717171;
+$text-secondary-lite: $darker-white;
+
+:root {
+  .light-theme {
+    --background-primary: #{$background-primary};
+    --background-secondary: #{$background-secondary};
+    --background-disabled: #{$background-disabled};
+    --color-disabled: #{$background-disabled};
+
+    --primary-accent: #{$primary-accent};
+    --primary-accent-darker: #{$primary-accent-darker};
+    --primary-accent-darkest: #{$primary-accent-darkest};
+    --primary-accent-lightest: #{$primary-accent-lightest};
+    --primary-accent-lightest2: #{$primary-accent-lightest2};
+    --primary-accent-lightest3: #{$primary-accent-lightest3};
+    --primary-accent-xlightest: #{$primary-accent-xlightest};
+    --primary-accent-selected: #{$primary-accent-lightest};
+    --row-el-selected: #{$primary-accent-lightest-selected};
+    --secondary-accent: #{$light-blue};
+
+    --accent-color: #{$accent-color};
+    --accent-color2: #{$accent-color2};
+    --accent-color4: #{$accent-color4};
+
+    --text-primary: #{$text-primary};
+    --text-primary-lite: #{$text-primary-lite};
+    --text-secondary: #{$text-secondary};
+    --text-secondary-darken: #{$text-secondary-darken};
+    --text-secondary-lite: #{$text-secondary-lite};
+
+    --frame-color: #{$frame-color};
+    --placeholder-color: #{$frame-color};
+    --frame-text-color: #{$frame-text-color};
+    --background-darker: #{$background-darker};
+    --unchecked-checkbox: #{$unchecked-checkbox};
+    --defaultToolTipBckColor: #{rgba($primary-accent, 1)};
+    --usage-led-off: #{$light-black};
+    --usage-led-lowest: #{$primary-accent-lightest};
+    --deployment-shadow-color: #9aa4b7;
+    --table-background-odd-row: #{$light-azure};
+    --table-row-separator-color: #{$xlight-grey};
+    --modal-header-separator-color: #{$xlight-grey};
+
+    --table-wrapper-bck-color: #{$darker-white};
+
+    --linear-gradient-updated-error: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(215, 59, 35, 0.15) 100%);
+
+    div {
+      scrollbar-color: $primary-accent-darker transparent !important;
+      &::-webkit-scrollbar-thumb {
+        background: $primary-accent-darker !important;
+      }
+      &.transparent-scroll-bar {
+        scrollbar-color: color-mix(in srgb, var(--primary-accent-darker) 20%, transparent) transparent !important;
+      }
+    }
+
+    &:not(:has(.dark-theme)) {
+      exa-deployment-cards {
+        li.deployment {
+          background-color: var(--background-darker) !important;
+        }
+      }
+      exa-database-card {
+        mat-card {
+          background-color: var(--background-secondary) !important;
+          .content {
+            &__toggle-workers-accordion {
+              &--disabled {
+                background-color: #f1f1f3 !important;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    exa-layout {
+      mat-drawer {
+        background-color: $exa-green !important;
+      }
+    }
+    exa-status-icon {
+      .loader {
+        &--finished {
+          background-color: #{$primary-accent-lightest3} !important;
+        }
+      }
+    }
+
+    exa-loader {
+      .loader {
+        background-image: url('/assets/icons/exasol-loader-w512.svg');
+      }
+    }
+
+    // for those items/components where the default theme can't be updated in specific stylesheets because are shared
+    exa-button {
+      button:hover {
+        background-color: var(--primary-accent-darkest);
+      }
+    }
+    .exa-modal-base-new {
+      footer {
+        background-color: rgba($primary-accent, 0.03);
+      }
+    }
+  }
+}

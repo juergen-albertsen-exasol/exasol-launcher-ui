@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -267,6 +268,33 @@ func TestLauncherIsLookedUpOnPath(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "exasol", opts.exasol)
+}
+
+func TestWebDirIsServed(t *testing.T) {
+	t.Parallel()
+
+	webDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(webDir, "index.html"), []byte("dev"), 0o600))
+
+	started := startServer(t, environment{}, "--port", "0", "--web-dir", webDir)
+
+	status, _, _ := get(t, "http://127.0.0.1:"+strconv.Itoa(started.port)+"/overview")
+	assert.Equal(t, http.StatusOK, status)
+}
+
+func TestMissingWebDirFailsStartup(t *testing.T) {
+	t.Parallel()
+
+	missing := filepath.Join(t.TempDir(), "web")
+
+	var stderr bytes.Buffer
+
+	exitCode := run(t.Context(), []string{
+		"--port", "0", "--web-dir", missing, "--exasol", launchertest.NewFake(t).Executable,
+	}, environment{stdout: io.Discard, stderr: &stderr})
+
+	assert.NotEqual(t, 0, exitCode)
+	assert.Contains(t, stderr.String(), missing)
 }
 
 func TestUnknownFlagFailsStartup(t *testing.T) {

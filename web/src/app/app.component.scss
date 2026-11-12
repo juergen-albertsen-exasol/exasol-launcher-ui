@@ -1,0 +1,6 @@
+:host {
+  // The session ends with the server, so the layout's logout entry has no use.
+  ::ng-deep .nav-content-wrapper .logout {
+    display: none;
+  }
+}

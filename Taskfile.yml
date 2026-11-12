@@ -3,6 +3,8 @@ version: '3'
 vars:
   BINARY: bin/exasol-local-ui
   DEV_TOOL: go tool -modfile=tools/devtools/go.mod
+  WEBAPP_DIST: internal/webapp/dist
+  DEV_WEBAPP_DIST: web/.dev-dist
 
 tasks:
   default:
@@ -11,29 +13,92 @@ tasks:
       - task --list
 
   build:
-    desc: Build the exasol-local-ui binary
+    desc: Build the web application and the exasol-local-ui binary that embeds it
+    deps: [web-build]
     cmds:
       - go build -o {{.BINARY}} ./cmd/exasol-local-ui
 
   test:
-    desc: Run the unit tests
+    desc: Run the Go and web application unit tests
+    deps: [webapp-placeholder, web-install]
     cmds:
       - go test ./...
+      - npm --prefix web test
 
   lint:
     desc: Run the linters and check that the Go modules are tidy
+    deps: [webapp-placeholder, web-install]
     cmds:
       - '{{.DEV_TOOL}} golangci-lint run ./...'
       - go mod tidy
       - go -C tools/devtools mod tidy
       - git diff --exit-code go.mod go.sum tools/devtools/go.mod tools/devtools/go.sum
+      - npm --prefix web run lint
 
   lint-fix:
     desc: Run the linters and apply automatic fixes
+    deps: [webapp-placeholder, web-install]
     cmds:
       - '{{.DEV_TOOL}} golangci-lint run ./... --fix'
+      - npm --prefix web run format
 
   dev:
-    desc: Run the server from source
+    desc: Rebuild the web application on change and serve it from disk; pass server flags after --
+    deps: [web-install]
     cmds:
-      - go run ./cmd/exasol-local-ui {{.CLI_ARGS}}
+      - task: dev-parallel
+        vars:
+          CLI_ARGS: '{{.CLI_ARGS}}'
+
+  dev-parallel:
+    internal: true
+    deps:
+      - task: web-watch
+      - task: dev-server
+        vars:
+          CLI_ARGS: '{{.CLI_ARGS}}'
+
+  dev-server:
+    internal: true
+    deps: [webapp-placeholder]
+    cmds:
+      - mkdir -p {{.DEV_WEBAPP_DIST}}
+      - go run ./cmd/exasol-local-ui --web-dir {{.DEV_WEBAPP_DIST}} {{.CLI_ARGS}}
+
+  web-watch:
+    internal: true
+    cmds:
+      - npm --prefix web run watch
+
+  web-install:
+    internal: true
+    sources:
+      - web/package.json
+      - web/package-lock.json
+    generates:
+      - web/node_modules/.package-lock.json
+    cmds:
+      - npm --prefix web ci
+
+  web-build:
+    internal: true
+    deps: [web-install]
+    sources:
+      - web/src/**/*
+      - web/angular.json
+      - web/tsconfig*.json
+      - web/package-lock.json
+    generates:
+      - '{{.WEBAPP_DIST}}/index.html'
+    cmds:
+      - npm --prefix web run build
+
+  # Go code embeds the web application, so it needs a directory to compile
+  # even when the web application has not been built.
+  webapp-placeholder:
+    internal: true
+    status:
+      - test -n "$(ls -A {{.WEBAPP_DIST}} 2>/dev/null)"
+    cmds:
+      - mkdir -p {{.WEBAPP_DIST}}
+      - touch {{.WEBAPP_DIST}}/.placeholder

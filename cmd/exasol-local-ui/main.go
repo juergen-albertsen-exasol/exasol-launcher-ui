@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/url"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/exasol/exasol-local-ui/internal/browser"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/server"
+	"github.com/exasol/exasol-local-ui/internal/webapp"
 )
 
 const usageExitCode = 2
@@ -23,6 +25,7 @@ type options struct {
 	port   int
 	open   bool
 	exasol string
+	webDir string
 }
 
 type environment struct {
@@ -71,6 +74,8 @@ func parseOptions(args []string, stderr io.Writer) (options, error) {
 	flags.BoolVar(&opts.open, "open", false, "open the access URL in the default browser")
 	flags.StringVar(&opts.exasol, "exasol", launcher.DefaultExecutable,
 		"launcher executable, looked up on PATH unless it is a path")
+	flags.StringVar(&opts.webDir, "web-dir", "",
+		"serve the web application from this directory instead of the embedded build")
 
 	if err := flags.Parse(args); err != nil {
 		return opts, err
@@ -88,6 +93,11 @@ func parseOptions(args []string, stderr io.Writer) (options, error) {
 func serve(ctx context.Context, opts options, env environment) error {
 	launcherClient := launcher.New(opts.exasol)
 	if _, err := launcherClient.Check(ctx); err != nil {
+		return err
+	}
+
+	webApp, err := webAppFiles(opts.webDir)
+	if err != nil {
 		return err
 	}
 
@@ -109,7 +119,10 @@ func serve(ctx context.Context, opts options, env environment) error {
 		RawQuery: url.Values{"token": {token}}.Encode(),
 	}).String()
 	handler := server.NewGuard(token, address.Port).
-		Wrap(server.NewHandler(server.Config{Launcher: launcherClient}))
+		Wrap(server.NewHandler(server.Config{
+			Launcher: launcherClient,
+			WebApp:   webApp,
+		}))
 
 	_, _ = fmt.Fprintf(env.stdout, "Exasol Local UI is available at %s\n", accessURL)
 
@@ -120,4 +133,21 @@ func serve(ctx context.Context, opts options, env environment) error {
 	}
 
 	return server.Serve(ctx, listener, handler)
+}
+
+func webAppFiles(webDir string) (fs.FS, error) {
+	if webDir == "" {
+		return webapp.Files(), nil
+	}
+
+	info, err := os.Stat(webDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot serve the web directory: %w", err)
+	}
+
+	if !info.IsDir() {
+		return nil, fmt.Errorf("cannot serve the web directory: %s is not a directory", webDir)
+	}
+
+	return os.DirFS(webDir), nil
 }

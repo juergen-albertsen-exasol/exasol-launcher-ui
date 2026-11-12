@@ -1,0 +1,52 @@
+$white: #ffffff;
+$darker-white: #fafafa;
+
+$xlight-grey: #e1e1e1;
+$light-grey: #dee2e7;
+$grey: #9aa4b7;
+$darker-grey: #57637a;
+
+$light-black: #3b475e;
+$black4: #444;
+$black3: #333;
+$black: #142039;
+// $dark: #0D1421;
+$dark: #1d1d1f;
+
+$dark-blue: #2a39ac;
+$blue: #2e6fee;
+$light-blue: lighten($blue, 10%);
+$xlight-blue: lighten($light-blue, 20%);
+$defaultToolTipBckColor: rgba($blue, 0.75);
+
+$light-azure: #f6f8fe;
+$azure: #edf7fd;
+$dark-azure: lighten($blue, 40%);
+$xdark-azure: #78b3ce;
+
+$light-red: #fef0f0;
+$lighter-red: #f44336;
+$lighter-red-transparent: #f4433633;
+
+$red: #d73b23;
+$dark-red: #b22a15;
+$defaultToolTipBckColorError: rgba($red, 0.75);
+
+$light-green: #66cc33;
+$green: #66bb00;
+$green-aqua: #13c783;
+$orange: #e78b48;
+$amber: #ffcc33;
+
+$backgroundDefault: #f8f9fe;
+
+$exa-green: #307841;
+$exa-green-light: #5fc33b;
+$exa-navy: #002e40;
+$exa-light-green: lighten($exa-green, 10%);
+$exa-xlight-green: lighten($exa-light-green, 20%);
+
+$card-shadow:
+  0px 2px 1px -1px rgba(0, 0, 0, 0.2),
+  0px 1px 1px 0px rgba(0, 0, 0, 0.14),
+  0px 1px 3px 0px rgba(0, 0, 0, 0.12);

@@ -1,0 +1,363 @@
+@import './variables';
+@import './breakpoints';
+
+@mixin display-flex($direction: row, $justify: normal, $flex: 0 0 auto, $align: unset, $width: auto) {
+  display: flex;
+  flex: $flex;
+  flex-direction: $direction;
+  align-items: $align;
+  justify-content: $justify;
+  width: $width;
+}
+
+@mixin flex-wrap($direction: row, $gap: 15px) {
+  flex-direction: $direction;
+  flex-wrap: wrap;
+  gap: $gap;
+}
+
+@mixin no-select {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Old versions of Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none;
+}
+
+@mixin gradient-background($c1, $c2, $startFrom, $direction, $startPoint: 0%, $endPoint: 100%) {
+  background: $c1; /* Old browsers */
+  background: -moz-linear-gradient($startFrom, $c1 $startPoint, $c2 $endPoint); /* FF3.6-15 */
+  background: -webkit-linear-gradient($startFrom, $c1 $startPoint, $c2 $endPoint); /* Chrome10-25,Safari5.1-6 */
+  background: linear-gradient(
+    to $direction,
+    $c1 $startPoint,
+    $c2 $endPoint
+  ); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+}
+
+@mixin scrollbar($colorBar, $background: transparent) {
+  scrollbar-color: $colorBar $background;
+  scrollbar-width: thin;
+  &::-webkit-scrollbar {
+    background: $background;
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $colorBar;
+    border-radius: 4px;
+    width: 4px;
+  }
+}
+
+@mixin textTruncated($width: 100%, $textOverflow: ellipsis) {
+  width: $width;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: $textOverflow;
+}
+
+@mixin image($filename, $path: '../icons/src/assets', $background-size: contain) {
+  background: url(#{$path}#{$filename}) no-repeat;
+  background-size: $background-size;
+  background-repeat: no-repeat;
+}
+
+@mixin centreAbsolutePos {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+}
+
+@mixin customizeButtonColor($background) {
+  button {
+    background-color: $background !important;
+    &:hover {
+      background-color: darken($background, 5%) !important;
+    }
+    &:not(:hover) {
+      &.cdk-focused {
+        ::ng-deep {
+          .mat-mdc-focus-indicator {
+            &::before {
+              border-color: $background;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@mixin customizeMaterialCheckBoxColor($mainColor: $blue, $tickColor: $white, $borderColor: $darker-grey) {
+  .mdc-checkbox {
+    .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+      border-color: $mainColor !important;
+      background-color: $mainColor !important;
+      svg {
+        color: $tickColor;
+      }
+    }
+    .mdc-checkbox__background {
+      border-color: $borderColor !important;
+    }
+    .mdc-checkbox__native-control:focus:checked ~ .mdc-checkbox__ripple {
+      background-color: $mainColor !important;
+    }
+  }
+}
+
+@mixin customizeSliderToggleColor($color: $white, $disableRipple: true) {
+  .mdc-switch:enabled {
+    .mdc-switch__track {
+      &::before {
+        background: var(--primary-accent) !important;
+        filter: saturate(0.7) opacity(0.25);
+      }
+      &::after {
+        background: var(--primary-accent) !important;
+        filter: opacity(0.4);
+      }
+    }
+    &.mdc-switch--unselected:enabled {
+      .mdc-switch__handle::after {
+        background: var(--primary-accent-darker) !important;
+        filter: saturate(0.65);
+      }
+    }
+    // selected
+    &.mdc-switch--selected:enabled {
+      .mdc-switch__handle::after {
+        background: var(--primary-accent) !important;
+      }
+    }
+
+    &:hover {
+      .mdc-switch__track {
+        &::before {
+          background: var(--primary-accent-lightest) !important;
+        }
+        &::after {
+          background: var(--primary-accent-darker) !important;
+        }
+      }
+      // selected
+      &.mdc-switch--selected:enabled {
+        .mdc-switch__handle::after {
+          background: var(--primary-accent-darker) !important;
+        }
+      }
+    }
+  }
+  @if $disableRipple {
+    .mdc-switch {
+      &__ripple {
+        display: none;
+      }
+    }
+  }
+}
+
+@mixin date-picker() {
+  ::ng-deep {
+    mat-datepicker-toggle {
+      button {
+        color: var(--text-secondary-darken);
+      }
+      &.mat-datepicker-toggle-active {
+        button {
+          color: var(--primary-accent);
+        }
+      }
+    }
+    .mdc-text-field--filled:not(.mdc-text-field--disabled).mdc-text-field--focused .mdc-floating-label,
+    .mdc-text-field--filled:not(.mdc-text-field--disabled).mdc-text-field--focused .mdc-floating-label--float-above {
+      color: var(--primary-accent);
+    }
+    .mat-mdc-text-field-wrapper {
+      border-radius: 4px;
+      border: 1px solid var(--frame-color);
+      &.mdc-text-field {
+        &--focused {
+          border: 1px solid var(--primary-accent);
+        }
+        &--invalid {
+          border-color: $red;
+        }
+      }
+    }
+    &.mat-mdc-form-field.mat-focused {
+      .mat-mdc-form-field-focus-overlay {
+        opacity: 0.02;
+      }
+    }
+    .mdc-line-ripple {
+      display: none;
+    }
+    mat-hint {
+      color: $grey;
+    }
+  }
+}
+
+@mixin date-picker-panel() {
+  $textColor: var(--text-primary);
+  .mat-calendar-controls {
+    .mdc-icon-button {
+      color: $textColor !important;
+      .mat-mdc-button-persistent-ripple::before {
+        background-color: $textColor !important;
+      }
+    }
+  }
+  .mat-datepicker-content-container {
+    background: var(--background-secondary);
+    .mat-calendar-table-header {
+      th {
+        color: $textColor;
+      }
+      .mat-calendar-table-header-divider {
+        &::after {
+          background: var(--frame-color);
+        }
+      }
+    }
+    .mdc-button__label {
+      color: $textColor;
+      svg {
+        fill: $textColor;
+      }
+    }
+    .mat-calendar-body-label {
+      color: $textColor;
+    }
+    table {
+      button {
+        .mat-calendar-body-cell-content {
+          color: $textColor;
+        }
+      }
+    }
+  }
+  .exa-form-field {
+    &__date-picker {
+      mat-datepicker-toggle {
+        &.mat-datepicker-toggle-active {
+          color: var(--primary-accent) !important;
+        }
+        button {
+          span {
+            display: none;
+          }
+        }
+      }
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+    }
+  }
+  .exa-date-picker {
+    height: 400px !important;
+    button.mat-calendar-body-cell {
+      .mat-calendar-body-selected {
+        background-color: var(--primary-accent) !important;
+        color: $white;
+      }
+      &:not(.mat-calendar-body-disabled) {
+        &:hover {
+          .mat-calendar-body-cell-content:not(.mat-calendar-body-selected):not(
+              .mat-calendar-body-comparison-identical
+            ) {
+            background-color: var(--primary-accent-lightest) !important;
+          }
+        }
+      }
+    }
+    button.mat-calendar-body-active {
+      .mat-calendar-body-cell-content:not(.mat-calendar-body-selected):not(.mat-calendar-body-comparison-identical) {
+        background-color: var(--primary-accent-lightest) !important;
+      }
+    }
+  }
+}
+
+@mixin mat-slider() {
+  mat-slide-toggle,
+  mat-slider {
+    flex: 1 1 auto;
+    ::ng-deep {
+      .mat-ripple {
+        display: none;
+      }
+      .mdc-slider__track {
+        height: 2px !important;
+        &--inactive {
+          height: 2px !important;
+          background-color: var(--primary-accent);
+        }
+        &--active {
+          height: 4px !important;
+          &_fill {
+            border-color: var(--primary-accent);
+          }
+        }
+      }
+      mat-slider-visual-thumb {
+        .mdc-slider__thumb-knob {
+          background-color: var(--primary-accent);
+          width: 12px !important;
+          height: 12px !important;
+          border: none;
+        }
+      }
+    }
+  }
+}
+
+@mixin setBackgroundFormTitle($color) {
+  .form__with-title {
+    &::before {
+      background-color: $color !important;
+    }
+  }
+}
+
+@mixin fontFamilyAwesome($font-weight: 800) {
+  font-family: 'Font Awesome 6 Free';
+  font-weight: $font-weight;
+  color: var(--primary-accent);
+}
+
+@mixin truncated($direction: ltr, $display: inline-block) {
+  overflow-x: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  direction: $direction;
+  display: $display;
+}
+
+@mixin normalCheckboxAsMaterial($isChecked: false) {
+  @if $isChecked {
+    background: var(--primary-accent);
+    content: '\f00c';
+    border-color: var(--primary-accent);
+  } @else {
+    content: '';
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--text-secondary);
+    border-radius: 2px;
+    position: absolute;
+    top: 2px;
+    right: -25px;
+    @include fontFamilyAwesome;
+    line-height: 15px;
+    font-size: $font-xxsm;
+    padding-left: 2px;
+    color: #fff;
+  }
+}

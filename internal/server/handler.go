@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -14,6 +15,8 @@ type Config struct {
 	Launcher *launcher.Client
 	// Ping defaults to database.Ping.
 	Ping func(ctx context.Context, target database.Target) (time.Duration, error)
+	// WebApp holds the compiled browser application.
+	WebApp fs.FS
 }
 
 // NewHandler returns the handler for all requests the server answers.
@@ -24,10 +27,7 @@ func NewHandler(config Config) http.Handler {
 
 	mux := http.NewServeMux()
 	(&api{launcher: config.Launcher, ping: config.Ping}).register(mux)
-	mux.HandleFunc("GET /{$}", func(response http.ResponseWriter, _ *http.Request) {
-		response.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = response.Write([]byte("Exasol Local UI\n"))
-	})
+	mux.Handle("/", newWebApp(config.WebApp))
 
 	return mux
 }
