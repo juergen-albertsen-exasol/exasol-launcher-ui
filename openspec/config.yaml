@@ -1,0 +1,23 @@
+schema: spec-driven
+
+context: |
+  Exasol Local UI is an optional prototype web UI for local Exasol Personal
+  deployments. A host-side Go server serves an Angular app and a narrow HTTP
+  API; it drives the Exasol Personal launcher (../exasol-personal) through its
+  JSON CLI and connects to the database with the deployment's stored
+  credentials. The frontend follows the conventions of the cloud Admin UI
+  (../admin-ui): Angular, @exasol/ui-common, NgXs, standalone components, SCSS
+  with BEM. New HTTP resources are shaped like Exasol Administration API
+  resources (../admin-ui/openapi/openapi.json) so they can be adopted there.
+  The server binds to loopback, requires a session token, and checks Host and
+  Origin headers.
+
+rules:
+  proposal:
+    - Keep proposals concise and outcome-focused; avoid em dashes
+  specs:
+    - Use positive, observable requirements at a stable boundary (CLI, HTTP API, or browser)
+    - Never specify negative requirements, internal mechanisms, or unchanged behavior
+    - Give each behavior one canonical specification
+  tasks:
+    - Map each task to exactly one independently verifiable commit
