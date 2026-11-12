@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"testing"
@@ -16,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var accessURLPattern = regexp.MustCompile(`http://127\.0\.0\.1:(\d+)/\S*`)
+var accessURLPattern = regexp.MustCompile(`http://127\.0\.0\.1:(\d+)/\?token=([A-Za-z0-9_-]+)`)
 
 type startedServer struct {
 	accessURL string
@@ -24,15 +25,28 @@ type startedServer struct {
 	stop      func() int
 }
 
-func startServer(t *testing.T, args ...string) startedServer {
+func startServer(t *testing.T, env environment, args ...string) startedServer {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	stdoutReader, stdoutWriter := io.Pipe()
 	exitCode := make(chan int, 1)
 
+	env.stdout = stdoutWriter
+	if env.stderr == nil {
+		env.stderr = io.Discard
+	}
+
+	if env.openBrowser == nil {
+		env.openBrowser = func(context.Context, string) error {
+			t.Error("unexpected browser start")
+
+			return nil
+		}
+	}
+
 	go func() {
-		exitCode <- run(ctx, args, stdoutWriter, io.Discard)
+		exitCode <- run(ctx, args, env)
 		_ = stdoutWriter.Close()
 	}()
 
@@ -92,30 +106,117 @@ func freePort(t *testing.T) int {
 	return port
 }
 
-func getStatus(t *testing.T, address string) int {
+func noRedirectClient() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{DisableKeepAlives: true},
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
+func get(t *testing.T, address string, cookies ...*http.Cookie) (int, http.Header, []*http.Cookie) {
 	t.Helper()
 
 	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, address, nil)
 	require.NoError(t, err)
 
-	response, err := http.DefaultClient.Do(request)
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
+
+	response, err := noRedirectClient().Do(request)
 	require.NoError(t, err)
 	require.NoError(t, response.Body.Close())
 
-	return response.StatusCode
+	return response.StatusCode, response.Header, response.Cookies()
+}
+
+func TestDefaultPortIs5180(t *testing.T) {
+	t.Parallel()
+
+	opts, err := parseOptions(nil, io.Discard)
+
+	require.NoError(t, err)
+	assert.Equal(t, 5180, opts.port)
+	assert.False(t, opts.open)
 }
 
 func TestServesOnTheChosenPortUntilInterrupted(t *testing.T) {
 	t.Parallel()
 
 	port := freePort(t)
-	started := startServer(t, "--port", strconv.Itoa(port))
+	started := startServer(t, environment{}, "--port", strconv.Itoa(port))
 
 	assert.Equal(t, port, started.port)
 
-	assert.Equal(t, http.StatusOK, getStatus(t, started.accessURL))
+	status, _, _ := get(t, started.accessURL)
+	assert.Equal(t, http.StatusSeeOther, status)
 
 	assert.Equal(t, 0, started.stop())
+}
+
+func TestOpenStartsTheBrowserWithTheAccessURL(t *testing.T) {
+	t.Parallel()
+
+	opened := make(chan string, 1)
+	started := startServer(t, environment{
+		openBrowser: func(_ context.Context, url string) error {
+			opened <- url
+
+			return nil
+		},
+	}, "--port", "0", "--open")
+
+	assert.Equal(t, started.accessURL, <-opened)
+}
+
+func TestAccessURLEstablishesASession(t *testing.T) {
+	t.Parallel()
+
+	started := startServer(t, environment{}, "--port", "0")
+	base := "http://127.0.0.1:" + strconv.Itoa(started.port)
+
+	status, header, cookies := get(t, started.accessURL)
+
+	assert.Equal(t, http.StatusSeeOther, status)
+	assert.Equal(t, "/", header.Get("Location"))
+	require.Len(t, cookies, 1)
+	assert.True(t, cookies[0].HttpOnly)
+	assert.Equal(t, http.SameSiteStrictMode, cookies[0].SameSite)
+
+	unauthorized, _, _ := get(t, base+"/api/v1/anything")
+	assert.Equal(t, http.StatusUnauthorized, unauthorized)
+
+	authorized, _, _ := get(t, base+"/api/v1/anything", cookies[0])
+	assert.NotEqual(t, http.StatusUnauthorized, authorized)
+}
+
+func TestCookieFromAnEarlierStartIsUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	port := freePort(t)
+	first := startServer(t, environment{}, "--port", strconv.Itoa(port))
+	_, _, cookies := get(t, first.accessURL)
+	require.Len(t, cookies, 1)
+	require.Equal(t, 0, first.stop())
+
+	second := startServer(t, environment{}, "--port", strconv.Itoa(port))
+	require.NotEqual(t, first.accessURL, second.accessURL)
+
+	status, _, _ := get(t, "http://127.0.0.1:"+strconv.Itoa(port)+"/api/v1/anything", cookies[0])
+	assert.Equal(t, http.StatusUnauthorized, status)
+}
+
+func TestAccessURLCarriesAToken(t *testing.T) {
+	t.Parallel()
+
+	started := startServer(t, environment{}, "--port", "0")
+
+	parsed, err := url.Parse(started.accessURL)
+	require.NoError(t, err)
+	assert.Equal(t, "/", parsed.Path)
+	assert.GreaterOrEqual(t, len(parsed.Query().Get("token")), 22)
 }
 
 func TestOccupiedPortFailsStartup(t *testing.T) {
@@ -128,7 +229,10 @@ func TestOccupiedPortFailsStartup(t *testing.T) {
 
 	var stderr bytes.Buffer
 
-	exitCode := run(t.Context(), []string{"--port", port}, io.Discard, &stderr)
+	exitCode := run(t.Context(), []string{"--port", port}, environment{
+		stdout: io.Discard,
+		stderr: &stderr,
+	})
 
 	assert.NotEqual(t, 0, exitCode)
 	assert.Contains(t, stderr.String(), port)
@@ -137,5 +241,10 @@ func TestOccupiedPortFailsStartup(t *testing.T) {
 func TestUnknownFlagFailsStartup(t *testing.T) {
 	t.Parallel()
 
-	assert.NotEqual(t, 0, run(t.Context(), []string{"--bogus"}, io.Discard, io.Discard))
+	exitCode := run(t.Context(), []string{"--bogus"}, environment{
+		stdout: io.Discard,
+		stderr: io.Discard,
+	})
+
+	assert.NotEqual(t, 0, exitCode)
 }

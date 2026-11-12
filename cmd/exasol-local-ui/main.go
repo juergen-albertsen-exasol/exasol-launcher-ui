@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"os/signal"
@@ -22,16 +23,26 @@ type options struct {
 	open bool
 }
 
+type environment struct {
+	stdout      io.Writer
+	stderr      io.Writer
+	openBrowser func(ctx context.Context, url string) error
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	exitCode := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	exitCode := run(ctx, os.Args[1:], environment{
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		openBrowser: browser.Open,
+	})
 
 	stop()
 	os.Exit(exitCode)
 }
 
-func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
-	opts, err := parseOptions(args, stderr)
+func run(ctx context.Context, args []string, env environment) int {
+	opts, err := parseOptions(args, env.stderr)
 	if errors.Is(err, flag.ErrHelp) {
 		return 0
 	}
@@ -40,8 +51,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return usageExitCode
 	}
 
-	if err := serve(ctx, opts, stdout, stderr); err != nil {
-		_, _ = fmt.Fprintf(stderr, "Error: %v\n", err)
+	if err := serve(ctx, opts, env); err != nil {
+		_, _ = fmt.Fprintf(env.stderr, "Error: %v\n", err)
 
 		return 1
 	}
@@ -70,20 +81,33 @@ func parseOptions(args []string, stderr io.Writer) (options, error) {
 	return opts, nil
 }
 
-func serve(ctx context.Context, opts options, stdout, stderr io.Writer) error {
+func serve(ctx context.Context, opts options, env environment) error {
 	listener, err := server.Listen(ctx, opts.port)
 	if err != nil {
 		return err
 	}
 
-	accessURL := (&url.URL{Scheme: "http", Host: listener.Addr().String(), Path: "/"}).String()
-	_, _ = fmt.Fprintf(stdout, "Exasol Local UI is available at %s\n", accessURL)
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("unexpected listener address %s", listener.Addr())
+	}
+
+	token := server.NewToken()
+	accessURL := (&url.URL{
+		Scheme:   "http",
+		Host:     address.String(),
+		Path:     "/",
+		RawQuery: url.Values{"token": {token}}.Encode(),
+	}).String()
+	handler := server.NewGuard(token, address.Port).Wrap(server.NewHandler())
+
+	_, _ = fmt.Fprintf(env.stdout, "Exasol Local UI is available at %s\n", accessURL)
 
 	if opts.open {
-		if err := browser.Open(ctx, accessURL); err != nil {
-			_, _ = fmt.Fprintf(stderr, "Warning: %v\n", err)
+		if err := env.openBrowser(ctx, accessURL); err != nil {
+			_, _ = fmt.Fprintf(env.stderr, "Warning: %v\n", err)
 		}
 	}
 
-	return server.Serve(ctx, listener, server.NewHandler())
+	return server.Serve(ctx, listener, handler)
 }
