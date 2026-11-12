@@ -8,11 +8,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/exasol/exasol-local-ui/internal/launcher/launchertest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,6 +46,8 @@ func startServer(t *testing.T, env environment, args ...string) startedServer {
 			return nil
 		}
 	}
+
+	args = append([]string{"--exasol", launchertest.NewFake(t).Executable}, args...)
 
 	go func() {
 		exitCode <- run(ctx, args, env)
@@ -229,13 +233,40 @@ func TestOccupiedPortFailsStartup(t *testing.T) {
 
 	var stderr bytes.Buffer
 
-	exitCode := run(t.Context(), []string{"--port", port}, environment{
+	exitCode := run(t.Context(), []string{
+		"--port", port, "--exasol", launchertest.NewFake(t).Executable,
+	}, environment{
 		stdout: io.Discard,
 		stderr: &stderr,
 	})
 
 	assert.NotEqual(t, 0, exitCode)
 	assert.Contains(t, stderr.String(), port)
+}
+
+func TestMissingLauncherFailsStartup(t *testing.T) {
+	t.Parallel()
+
+	missing := filepath.Join(t.TempDir(), "exasol")
+
+	var stderr bytes.Buffer
+
+	exitCode := run(t.Context(), []string{"--port", "0", "--exasol", missing}, environment{
+		stdout: io.Discard,
+		stderr: &stderr,
+	})
+
+	assert.NotEqual(t, 0, exitCode)
+	assert.Contains(t, stderr.String(), missing)
+}
+
+func TestLauncherIsLookedUpOnPath(t *testing.T) {
+	t.Parallel()
+
+	opts, err := parseOptions(nil, io.Discard)
+
+	require.NoError(t, err)
+	assert.Equal(t, "exasol", opts.exasol)
 }
 
 func TestUnknownFlagFailsStartup(t *testing.T) {

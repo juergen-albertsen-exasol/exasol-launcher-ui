@@ -13,14 +13,16 @@ import (
 	"syscall"
 
 	"github.com/exasol/exasol-local-ui/internal/browser"
+	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/server"
 )
 
 const usageExitCode = 2
 
 type options struct {
-	port int
-	open bool
+	port   int
+	open   bool
+	exasol string
 }
 
 type environment struct {
@@ -67,6 +69,8 @@ func parseOptions(args []string, stderr io.Writer) (options, error) {
 	flags.SetOutput(stderr)
 	flags.IntVar(&opts.port, "port", server.DefaultPort, "port to serve on, on 127.0.0.1")
 	flags.BoolVar(&opts.open, "open", false, "open the access URL in the default browser")
+	flags.StringVar(&opts.exasol, "exasol", launcher.DefaultExecutable,
+		"launcher executable, looked up on PATH unless it is a path")
 
 	if err := flags.Parse(args); err != nil {
 		return opts, err
@@ -82,6 +86,11 @@ func parseOptions(args []string, stderr io.Writer) (options, error) {
 }
 
 func serve(ctx context.Context, opts options, env environment) error {
+	launcherClient := launcher.New(opts.exasol)
+	if _, err := launcherClient.Check(ctx); err != nil {
+		return err
+	}
+
 	listener, err := server.Listen(ctx, opts.port)
 	if err != nil {
 		return err
