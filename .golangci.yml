@@ -34,12 +34,21 @@ linters:
       - path: _test\.go
         linters:
           - gosec
+      # The launcher client decodes the launcher's camelCase JSON output.
+      - path: internal/launcher/
+        linters:
+          - tagliatelle
 
   enable:
     - wsl_v5
     - gomodguard_v2
 
   settings:
+    # The HTTP API follows the snake_case naming of the Administration API.
+    tagliatelle:
+      case:
+        rules:
+          json: snake
     gci:
       sections:
         - standard

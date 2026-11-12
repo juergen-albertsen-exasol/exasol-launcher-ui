@@ -29,3 +29,16 @@ func writeProblem(response http.ResponseWriter, status int, detail string) {
 	response.WriteHeader(status)
 	_, _ = response.Write(body)
 }
+
+func writeJSON[T any](response http.ResponseWriter, status int, value T) {
+	body, err := json.Marshal(value)
+	if err != nil {
+		writeProblem(response, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(status)
+	_, _ = response.Write(body)
+}

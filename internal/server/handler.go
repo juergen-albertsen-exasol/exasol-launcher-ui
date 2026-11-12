@@ -2,14 +2,17 @@ package server
 
 import (
 	"net/http"
+
+	"github.com/exasol/exasol-local-ui/internal/launcher"
 )
 
 // NewHandler returns the handler for all requests the server answers.
-func NewHandler() http.Handler {
+func NewHandler(launcherClient *launcher.Client) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("Exasol Local UI\n"))
+	(&api{launcher: launcherClient}).register(mux)
+	mux.HandleFunc("GET /{$}", func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = response.Write([]byte("Exasol Local UI\n"))
 	})
 
 	return mux
