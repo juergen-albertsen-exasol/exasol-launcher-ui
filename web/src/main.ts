@@ -1,4 +1,4 @@
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { importProvidersFrom, provideZoneChangeDetection } from '@angular/core';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { bootstrapApplication } from '@angular/platform-browser';
@@ -8,6 +8,7 @@ import { provideStore } from '@ngxs/store';
 import { NAV_ITEMS, NotificationsState } from '@exasol/ui-common';
 import { AppComponent } from '@exa/app.component';
 import { APP_NAV_ITEMS, appRoutes } from '@exa/routes';
+import { sessionInterceptor } from '@exa/services/session/session.interceptor';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
 
 bootstrapApplication(AppComponent, {
@@ -15,7 +16,7 @@ bootstrapApplication(AppComponent, {
     provideZoneChangeDetection(),
     importProvidersFrom(MatSnackBarModule),
     provideRouter(appRoutes, withEnabledBlockingInitialNavigation(), withComponentInputBinding()),
-    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withInterceptors([sessionInterceptor])),
     provideAnimations(),
     provideStore([NotificationsState, DeploymentsState]),
     { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },

@@ -7,6 +7,7 @@ import { provideStore } from '@ngxs/store';
 import { NAV_ITEMS, NotificationsState } from '@exasol/ui-common';
 import { AppComponent } from './app.component';
 import { APP_NAV_ITEMS, appRoutes } from './routes';
+import { SessionService } from './services/session/session.service';
 import { DeploymentsState } from './store/deployments/deployments.state';
 import { provideLocalApi, summary } from './testing/local-api.mock';
 
@@ -65,5 +66,15 @@ describe('AppComponent', () => {
       expect(active.nativeElement.getAttribute('href')).toBe('/deployments/test');
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Overview');
     });
+  });
+
+  it('tells the user to reconnect when the session expires', async () => {
+    await open('/');
+    TestBed.inject(SessionService).expire();
+    fixture.detectChanges();
+
+    const message = root.query(By.css('exa-session-expired'));
+    expect(message.nativeElement.textContent).toContain('Open the access URL');
+    expect(root.query(By.css('exa-page-deployments'))).toBeNull();
   });
 });

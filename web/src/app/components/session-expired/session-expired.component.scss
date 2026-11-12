@@ -1,0 +1,28 @@
+.session-expired {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 36rem;
+  margin: 3rem auto 0;
+  padding: 2rem;
+  border-radius: 8px;
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  text-align: center;
+  box-shadow: 0 0 10px -7px #000;
+
+  &__icon {
+    font-size: 2rem;
+    color: var(--primary-accent);
+  }
+
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
+
+  &__text {
+    color: var(--text-secondary);
+  }
+}

@@ -1,1 +1,5 @@
+@if (sessionExpired()) {
+<exa-session-expired></exa-session-expired>
+} @else {
 <router-outlet></router-outlet>
+}
