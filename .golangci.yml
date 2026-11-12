@@ -34,8 +34,8 @@ linters:
       - path: _test\.go
         linters:
           - gosec
-      # The launcher client decodes the launcher's camelCase JSON output.
-      - path: internal/launcher/
+      # The launcher's JSON output and files use camelCase.
+      - path: internal/(launcher|database)/
         linters:
           - tagliatelle
 

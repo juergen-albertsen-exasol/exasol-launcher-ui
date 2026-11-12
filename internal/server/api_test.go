@@ -1,11 +1,17 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/exasol/exasol-local-ui/internal/database"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/launcher/launchertest"
 	"github.com/stretchr/testify/assert"
@@ -31,12 +37,26 @@ const (
 
 var listArgs = []string{"deployments", "list", "--json"}
 
+type pingFunc = func(ctx context.Context, target database.Target) (time.Duration, error)
+
 func callAPI(t *testing.T, fake *launchertest.Fake, target string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	return callAPIWithPing(t, fake, target, nil)
+}
+
+func callAPIWithPing(
+	t *testing.T,
+	fake *launchertest.Fake,
+	target string,
+	ping pingFunc,
+) *httptest.ResponseRecorder {
 	t.Helper()
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
 	recorder := httptest.NewRecorder()
-	NewHandler(launcher.New(fake.Executable)).ServeHTTP(recorder, request)
+	NewHandler(Config{Launcher: launcher.New(fake.Executable), Ping: ping}).
+		ServeHTTP(recorder, request)
 
 	return recorder
 }
@@ -140,6 +160,96 @@ func TestUnknownAPIPathIsNotFound(t *testing.T) {
 	t.Parallel()
 
 	response := callAPI(t, launchertest.NewFake(t), "/api/v1/unknown")
+
+	assert.Equal(t, http.StatusNotFound, response.Code)
+}
+
+const storedPassword = "s3cretPassw0rd"
+
+// fakeWithDeploymentDir lists one deployment "default" whose directory holds
+// a secrets.json, and describes it with infoJSON.
+func fakeWithDeploymentDir(t *testing.T, infoJSON string) *launchertest.Fake {
+	t.Helper()
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "secrets.json"),
+		[]byte(`{"dbPassword": "`+storedPassword+`"}`), 0o600))
+
+	listing, err := json.Marshal([]launcher.Deployment{{
+		Name: "default", Path: dir, Status: "database_ready",
+		Infrastructure: "local", Installation: "local",
+	}})
+	require.NoError(t, err)
+
+	fake := launchertest.NewFake(t)
+	fake.Respond(string(listing), listArgs...)
+	fake.Respond(infoJSON, "info", "--json", "--deployment-dir", dir)
+
+	return fake
+}
+
+func TestReachableDatabaseReportsTheRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	var pinged database.Target
+
+	fake := fakeWithDeploymentDir(t, runningInfo)
+	response := callAPIWithPing(t, fake, "/api/v1/deployments/default/health/ping",
+		func(_ context.Context, target database.Target) (time.Duration, error) {
+			pinged = target
+
+			return 12 * time.Millisecond, nil
+		})
+
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.JSONEq(t, `{"status": "reachable", "round_trip_ms": 12}`, response.Body.String())
+	assert.Equal(t, database.Target{
+		Host: "127.0.0.1", Port: 8563, Username: "sys", Password: storedPassword,
+		InsecureSkipCertValidation: true,
+	}, pinged)
+}
+
+func TestUnreachableDatabaseReportsTheRedactedError(t *testing.T) {
+	t.Parallel()
+
+	fake := fakeWithDeploymentDir(t, runningInfo)
+	response := callAPIWithPing(t, fake, "/api/v1/deployments/default/health/ping",
+		func(_ context.Context, target database.Target) (time.Duration, error) {
+			return 0, errors.New("connection refused for " + target.String() +
+				" with " + target.Password)
+		})
+
+	assert.Equal(t, http.StatusOK, response.Code)
+
+	result := decode[pingResult](t, response)
+	assert.Equal(t, "unreachable", result.Status)
+	assert.Contains(t, result.Error, "sys@127.0.0.1:8563")
+	assert.NotContains(t, response.Body.String(), storedPassword)
+}
+
+func TestStoppedDeploymentIsUnreachable(t *testing.T) {
+	t.Parallel()
+
+	fake := fakeWithDeploymentDir(t, `{"deploymentState": "stopped"}`)
+	response := callAPIWithPing(t, fake, "/api/v1/deployments/default/health/ping",
+		func(context.Context, database.Target) (time.Duration, error) {
+			t.Error("unexpected ping")
+
+			return 0, nil
+		})
+
+	result := decode[pingResult](t, response)
+	assert.Equal(t, "unreachable", result.Status)
+	assert.Contains(t, result.Error, "stopped")
+}
+
+func TestPingOfAnUnknownDeploymentIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Respond(`[]`, listArgs...)
+
+	response := callAPI(t, fake, "/api/v1/deployments/default/health/ping")
 
 	assert.Equal(t, http.StatusNotFound, response.Code)
 }

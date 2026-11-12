@@ -1,9 +1,17 @@
 package server
 
 import (
+	"context"
 	"net/http"
+	"time"
 
+	"github.com/exasol/exasol-local-ui/internal/database"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
+)
+
+const (
+	reachable   = "reachable"
+	unreachable = "unreachable"
 )
 
 type deploymentSummary struct {
@@ -28,13 +36,21 @@ type connectionDetails struct {
 	InsecureSkipCertValidation bool   `json:"insecure_skip_cert_validation"`
 }
 
+type pingResult struct {
+	Status      string `json:"status"`
+	RoundTripMs *int64 `json:"round_trip_ms,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
 type api struct {
 	launcher *launcher.Client
+	ping     func(ctx context.Context, target database.Target) (time.Duration, error)
 }
 
 func (a *api) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/deployments", a.listDeployments)
 	mux.HandleFunc("GET /api/v1/deployments/{name}", a.getDeployment)
+	mux.HandleFunc("GET /api/v1/deployments/{name}/health/ping", a.pingDeployment)
 	mux.HandleFunc("/api/", func(response http.ResponseWriter, _ *http.Request) {
 		writeProblem(response, http.StatusNotFound, "The API has no such resource.")
 	})
@@ -109,4 +125,56 @@ func (a *api) findDeployment(
 	}
 
 	return deployment, true
+}
+
+func (a *api) pingDeployment(response http.ResponseWriter, request *http.Request) {
+	deployment, ok := a.findDeployment(response, request)
+	if !ok {
+		return
+	}
+
+	info, err := a.launcher.Info(request.Context(), deployment.Path)
+	if err != nil {
+		writeProblem(response, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	if info.Connection == nil {
+		writeJSON(response, http.StatusOK, pingResult{
+			Status: unreachable,
+			Error: "Deployment " + deployment.Name + " is " + info.DeploymentState +
+				", so it has no connection details.",
+		})
+
+		return
+	}
+
+	writeJSON(response, http.StatusOK, a.pingConnection(request.Context(), deployment, info))
+}
+
+func (a *api) pingConnection(
+	ctx context.Context,
+	deployment launcher.Deployment,
+	info launcher.Info,
+) pingResult {
+	password, err := database.ReadPassword(deployment.Path)
+	if err != nil {
+		return pingResult{Status: unreachable, Error: err.Error()}
+	}
+
+	roundTrip, err := a.ping(ctx, database.Target{
+		Host:                       info.Connection.Host,
+		Port:                       info.Connection.Port,
+		Username:                   info.Connection.Username,
+		Password:                   password,
+		InsecureSkipCertValidation: info.Connection.InsecureSkipCertValidation,
+	})
+	if err != nil {
+		return pingResult{Status: unreachable, Error: database.Redact(err, password).Error()}
+	}
+
+	milliseconds := roundTrip.Milliseconds()
+
+	return pingResult{Status: reachable, RoundTripMs: &milliseconds}
 }

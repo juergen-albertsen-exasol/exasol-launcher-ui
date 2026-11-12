@@ -108,7 +108,8 @@ func serve(ctx context.Context, opts options, env environment) error {
 		Path:     "/",
 		RawQuery: url.Values{"token": {token}}.Encode(),
 	}).String()
-	handler := server.NewGuard(token, address.Port).Wrap(server.NewHandler(launcherClient))
+	handler := server.NewGuard(token, address.Port).
+		Wrap(server.NewHandler(server.Config{Launcher: launcherClient}))
 
 	_, _ = fmt.Fprintf(env.stdout, "Exasol Local UI is available at %s\n", accessURL)
 
