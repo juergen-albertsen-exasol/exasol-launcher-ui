@@ -25,3 +25,16 @@ export class CloseSqlSessionAction {
   static readonly type = '[SQL] Close session';
   constructor(public name: string) {}
 }
+
+export class LoadSchemasAction {
+  static readonly type = '[SQL] Load schemas';
+  constructor(public name: string) {}
+}
+
+export class LoadSchemaColumnsAction {
+  static readonly type = '[SQL] Load schema columns';
+  constructor(
+    public name: string,
+    public schemas: string[]
+  ) {}
+}

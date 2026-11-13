@@ -3,11 +3,15 @@ import { Injectable, inject } from '@angular/core';
 import { Action, Selector, State, StateContext } from '@ngxs/store';
 import { patch, updateItem } from '@ngxs/store/operators';
 import { firstValueFrom } from 'rxjs';
-import { StatementOutcome, StatementProblem } from '@exa/services/local-api/local-api.models';
+import { SchemaSummary, StatementOutcome, StatementProblem } from '@exa/services/local-api/local-api.models';
 import { LocalApiService, problemDetail } from '@exa/services/local-api/local-api.service';
+import { Catalog, DDL_KEYWORDS, SchemaInfo } from '@exa/sql/catalog';
+import { firstKeyword } from '@exa/sql/splitter';
 import {
   CancelStatementsAction,
   CloseSqlSessionAction,
+  LoadSchemaColumnsAction,
+  LoadSchemasAction,
   RunStatementsAction,
   SelectResultTabAction,
 } from './sql.actions';
@@ -41,6 +45,9 @@ export interface SqlPage {
   cancelling: boolean;
   /** A new session replaced one that ended, which reset the open schema and any transaction. */
   sessionRenewed: boolean;
+  catalog?: Catalog;
+  catalogError?: string;
+  catalogLoading: boolean;
 }
 
 export interface SqlStateModel {
@@ -54,6 +61,14 @@ export const emptySqlPage = (): SqlPage => ({
   running: false,
   cancelling: false,
   sessionRenewed: false,
+  catalogLoading: false,
+});
+
+const schemaInfo = (summary: SchemaSummary): SchemaInfo => ({
+  name: summary.name,
+  virtual: summary.virtual,
+  tables: summary.objects.map(object => ({ name: object.name, kind: object.kind, columns: object.columns ?? [] })),
+  columnsLoaded: false,
 });
 
 const asProblem = (error: unknown): StatementProblem => {
@@ -87,6 +102,7 @@ export class SqlState {
       sessionRenewed: false,
     });
 
+    let changedNames = false;
     for (let index = 0; index < statements.length; index++) {
       if (this.page(ctx, name).cancelling) {
         this.markRestNotRun(ctx, name, index);
@@ -94,12 +110,45 @@ export class SqlState {
       }
       this.updateTab(ctx, name, index, { status: 'running', startedAt: Date.now() });
       const succeeded = await this.runOne(ctx, name, index, statements[index].sql);
+      changedNames ||= succeeded && DDL_KEYWORDS.has(firstKeyword(statements[index].sql));
       if (!succeeded) {
         this.markRestNotRun(ctx, name, index + 1);
         break;
       }
     }
     this.update(ctx, name, { running: false, cancelling: false });
+    if (changedNames) await firstValueFrom(ctx.dispatch(new LoadSchemasAction(name)));
+  }
+
+  /** Reads the schemas, and again the columns of the schemas whose columns were read before. */
+  @Action(LoadSchemasAction)
+  async loadSchemas(ctx: StateContext<SqlStateModel>, { name }: LoadSchemasAction): Promise<void> {
+    const loaded = (this.page(ctx, name).catalog?.schemas ?? []).filter(schema => schema.columnsLoaded);
+    this.update(ctx, name, { catalogLoading: true });
+    try {
+      const schemas = await firstValueFrom(this.api.listSchemas(name));
+      this.update(ctx, name, { catalog: { schemas: schemas.map(schemaInfo) }, catalogError: undefined });
+    } catch (error) {
+      this.update(ctx, name, { catalogError: problemDetail(error) });
+    } finally {
+      this.update(ctx, name, { catalogLoading: false });
+    }
+    const reload = loaded.map(schema => schema.name);
+    if (reload.length > 0) await firstValueFrom(ctx.dispatch(new LoadSchemaColumnsAction(name, reload)));
+  }
+
+  @Action(LoadSchemaColumnsAction)
+  async loadColumns(ctx: StateContext<SqlStateModel>, { name, schemas }: LoadSchemaColumnsAction): Promise<void> {
+    await Promise.all(
+      schemas.map(async schema => {
+        try {
+          const details = schemaInfo(await firstValueFrom(this.api.getSchema(name, schema)));
+          this.replaceSchema(ctx, name, { ...details, columnsLoaded: true });
+        } catch {
+          // A schema that is gone meanwhile disappears with the next listing.
+        }
+      })
+    );
   }
 
   @Action(CancelStatementsAction)
@@ -158,6 +207,13 @@ export class SqlState {
     const { id } = await firstValueFrom(this.api.openSqlSession(name));
     this.update(ctx, name, { sessionId: id });
     return id;
+  }
+
+  private replaceSchema(ctx: StateContext<SqlStateModel>, name: string, schema: SchemaInfo): void {
+    const catalog = this.page(ctx, name).catalog;
+    if (!catalog) return;
+    const schemas = catalog.schemas.map(existing => (existing.name === schema.name ? schema : existing));
+    this.update(ctx, name, { catalog: { schemas } });
   }
 
   private markRestNotRun(ctx: StateContext<SqlStateModel>, name: string, from: number): void {

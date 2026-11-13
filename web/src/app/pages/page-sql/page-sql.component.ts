@@ -14,6 +14,7 @@ import { Store } from '@ngxs/store';
 import { ErrorNotificationsAction, ExaButtonComponent } from '@exasol/ui-common';
 import { SqlEditorComponent } from '@exa/components/sql-editor/sql-editor.component';
 import { SqlResultsComponent } from '@exa/components/sql-results/sql-results.component';
+import { SqlSchemasComponent } from '@exa/components/sql-schemas/sql-schemas.component';
 import {
   DEPLOYMENT_READY_STATUS,
   Operation,
@@ -32,6 +33,8 @@ import { OperationsState } from '@exa/store/operations/operations.state';
 import {
   CancelStatementsAction,
   CloseSqlSessionAction,
+  LoadSchemaColumnsAction,
+  LoadSchemasAction,
   RunStatementsAction,
   SelectResultTabAction,
 } from '@exa/store/sql/sql.actions';
@@ -58,7 +61,7 @@ const errorOffset = (tab: ResultTab | undefined): number | undefined => {
   selector: 'exa-page-sql',
   templateUrl: './page-sql.component.html',
   styleUrls: ['./page-sql.component.scss'],
-  imports: [ExaButtonComponent, SqlEditorComponent, SqlResultsComponent],
+  imports: [ExaButtonComponent, SqlEditorComponent, SqlResultsComponent, SqlSchemasComponent],
 })
 export class PageSqlComponent {
   private readonly store = inject(Store);
@@ -108,6 +111,10 @@ export class PageSqlComponent {
     effect(onCleanup => {
       const name = this.name();
       onCleanup(() => this.store.dispatch(new CloseSqlSessionAction(name)));
+    });
+    effect(() => {
+      const name = this.name();
+      if (this.ready()) untracked(() => this.store.dispatch(new LoadSchemasAction(name)));
     });
     effect(() => {
       const tab = this.page().tabs[this.runningIndex()];
@@ -161,6 +168,18 @@ export class PageSqlComponent {
       formatted = formatted.slice(0, statement.from) + formatSql(statement.text) + formatted.slice(statement.to);
     }
     if (formatted !== text) editor.replaceAll(formatted);
+  }
+
+  insert(text: string): void {
+    this.editor().insert(text);
+  }
+
+  loadColumns(schemas: string[]): void {
+    this.store.dispatch(new LoadSchemaColumnsAction(this.name(), schemas));
+  }
+
+  reloadSchemas(): void {
+    this.store.dispatch(new LoadSchemasAction(this.name()));
   }
 
   selectTab(index: number): void {

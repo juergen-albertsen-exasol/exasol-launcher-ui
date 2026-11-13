@@ -5,9 +5,9 @@ import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { Store, provideStore } from '@ngxs/store';
-import { Subject, firstValueFrom, throwError } from 'rxjs';
+import { Subject, firstValueFrom, of, throwError } from 'rxjs';
 import { SqlEditorComponent } from '@exa/components/sql-editor/sql-editor.component';
-import { StatementOutcome } from '@exa/services/local-api/local-api.models';
+import { SchemaSummary, StatementOutcome } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 import { LoadDeploymentsAction } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
@@ -17,6 +17,47 @@ import { LocalApiFixture, mockLocalApi, resultSet, statementFailure, summary } f
 import { PageSqlComponent } from './page-sql.component';
 
 const REGIONS = 'SELECT REGION_NAME FROM REGIONS';
+
+const retailSchemas = (tables = ['REGIONS', 'SALES']): SchemaSummary[] => [
+  {
+    name: 'RETAIL',
+    virtual: false,
+    objects: [
+      ...tables.map(name => ({ name, kind: 'table' as const })),
+      { name: 'SALES_BY_DAY', kind: 'view' as const },
+    ],
+  },
+  { name: 'STAGING', virtual: false, objects: [] },
+];
+
+const retailColumns = (): SchemaSummary => ({
+  name: 'RETAIL',
+  virtual: false,
+  objects: [
+    {
+      name: 'REGIONS',
+      kind: 'table',
+      columns: [
+        { name: 'REGION_ID', type: 'DECIMAL(9,0)' },
+        { name: 'REGION_NAME', type: 'VARCHAR(100) UTF8' },
+      ],
+    },
+    {
+      name: 'SALES',
+      kind: 'table',
+      columns: [
+        { name: 'SALE_ID', type: 'DECIMAL(18,0)' },
+        { name: 'REGION_ID', type: 'DECIMAL(9,0)' },
+      ],
+    },
+    { name: 'SALES_BY_DAY', kind: 'view', columns: [{ name: 'DAY', type: 'DATE' }] },
+  ],
+});
+
+const catalogFixture = {
+  schemas: { default: retailSchemas() },
+  schemaDetails: { default: { RETAIL: retailColumns() } },
+};
 
 describe('PageSqlComponent', () => {
   let component: ComponentFixture<PageSqlComponent>;
@@ -253,5 +294,92 @@ describe('PageSqlComponent', () => {
     component.destroy();
 
     expect(api.closeSqlSession).toHaveBeenCalledWith('default', 'session-1');
+  });
+
+  const nodes = (selector = '.schemas__node') =>
+    root.queryAll(By.css(selector)).map(node => node.nativeElement.textContent.replace(/\s+/g, ' ').trim());
+  const node = (label: string) =>
+    root
+      .queryAll(By.css('.schemas__node'))
+      .find(element => element.nativeElement.textContent.replace(/\s+/g, ' ').trim().startsWith(label))!
+      .nativeElement as HTMLButtonElement;
+
+  it('lists the schemas and expands them to tables and columns', async () => {
+    await render(catalogFixture);
+
+    expect(nodes()).toEqual(['RETAIL', 'STAGING']);
+
+    node('RETAIL').click();
+    await refresh();
+    expect(nodes('.schemas__table')).toEqual(['REGIONS', 'SALES', 'SALES_BY_DAY']);
+    expect(root.query(By.css('.schemas__table .fa-eye'))).toBeTruthy();
+
+    node('REGIONS').click();
+    await refresh();
+    expect(api.getSchema).toHaveBeenCalledWith('default', 'RETAIL');
+    expect(nodes('.schemas__column')).toEqual(['REGION_IDDECIMAL(9,0)', 'REGION_NAMEVARCHAR(100) UTF8']);
+  });
+
+  it('filters schemas, tables, and columns by name', async () => {
+    await render(catalogFixture);
+
+    const filter = root.query(By.css('.schemas__search input')).nativeElement as HTMLInputElement;
+    filter.value = 'region';
+    filter.dispatchEvent(new Event('input'));
+    await refresh();
+
+    expect(nodes()).toEqual([
+      'RETAIL',
+      'REGIONS',
+      'REGION_IDDECIMAL(9,0)',
+      'REGION_NAMEVARCHAR(100) UTF8',
+      'SALES',
+      'REGION_IDDECIMAL(9,0)',
+    ]);
+  });
+
+  it('inserts a double-clicked name at the cursor and completes names in the editor', async () => {
+    await render(catalogFixture);
+    await type('SELECT  FROM T', 7);
+
+    node('RETAIL').click();
+    await refresh();
+    node('SALES_BY_DAY').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await refresh();
+
+    expect(editor().text()).toBe('SELECT SALES_BY_DAY FROM T');
+    expect(
+      editor()
+        .catalog()
+        ?.schemas.map(schema => schema.name)
+    ).toEqual(['RETAIL', 'STAGING']);
+  });
+
+  it('shows a new table without a reload', async () => {
+    await render(catalogFixture);
+    api.listSchemas.mockReturnValue(of(retailSchemas(['REGIONS', 'RETURNS', 'SALES'])));
+    await type('CREATE TABLE RETAIL.RETURNS (ID INT)');
+
+    await click('.sql__run');
+    node('RETAIL').click();
+    await refresh();
+
+    expect(nodes('.schemas__table')).toEqual(['REGIONS', 'RETURNS', 'SALES', 'SALES_BY_DAY']);
+  });
+
+  it('reloads the schemas', async () => {
+    await render(catalogFixture);
+
+    await click('.schemas__reload');
+
+    expect(api.listSchemas).toHaveBeenCalledTimes(2);
+  });
+
+  it('lists the schemas once the database runs', async () => {
+    await render({ ...catalogFixture, deployments: [summary('default', 'stopped')] });
+
+    expect(text('.schemas__hint')).toBe('Available once the database runs.');
+    expect(root.query(By.css('.schemas__search'))).toBeNull();
+    expect(api.listSchemas).not.toHaveBeenCalled();
   });
 });

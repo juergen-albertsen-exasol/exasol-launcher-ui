@@ -5,6 +5,7 @@ import {
   closeBrackets,
   closeBracketsKeymap,
   completionKeymap,
+  completionStatus,
   startCompletion,
 } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
@@ -101,6 +102,14 @@ export function identifierAt(text: string, offset: number): Range {
   while (from > 0 && IDENTIFIER_CHAR.test(text[from - 1])) from--;
   while (to < text.length && IDENTIFIER_CHAR.test(text[to])) to++;
   return to > from ? { from, to } : { from: offset, to: Math.min(offset + 1, text.length) };
+}
+
+/** Tab accepts the selected completion, or offers completions after a word; elsewhere it indents. */
+function tabComplete(view: EditorView): boolean {
+  if (completionStatus(view.state) === 'active') return acceptCompletion(view) || true;
+  const { head, empty } = view.state.selection.main;
+  if (!empty || !IDENTIFIER_CHAR.test(view.state.sliceDoc(head - 1, head))) return false;
+  return startCompletion(view);
 }
 
 interface Range {
@@ -221,7 +230,7 @@ export class SqlEditorComponent implements AfterViewInit, OnDestroy {
             ...searchKeymap,
             ...historyKeymap,
             ...completionKeymap,
-            { key: 'Tab', run: acceptCompletion },
+            { key: 'Tab', run: tabComplete },
             indentWithTab,
           ]),
           EditorView.updateListener.of(update => {

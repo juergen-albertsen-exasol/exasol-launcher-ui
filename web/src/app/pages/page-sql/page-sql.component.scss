@@ -35,8 +35,21 @@
     margin-right: 8px;
   }
 
-  &__main {
+  // The row does not wrap on wide screens, so the schema list scrolls within the page's height.
+  &__body {
     flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+
+    @media (max-width: 900px) {
+      flex-wrap: wrap;
+    }
+  }
+
+  &__main {
+    flex: 999 1 480px;
     min-width: 0;
     display: flex;
     flex-direction: column;

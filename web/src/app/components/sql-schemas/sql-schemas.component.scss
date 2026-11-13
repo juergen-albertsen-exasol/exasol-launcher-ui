@@ -1,0 +1,151 @@
+@import 'colors';
+
+:host {
+  display: flex;
+  flex: 1 1 220px;
+  max-width: 280px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.schemas {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--frame-color);
+  border-radius: 4px;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  &__reload {
+    height: 30px;
+    padding: 0 6px;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background: var(--background-primary);
+
+    i {
+      color: var(--text-secondary-darken);
+      font-size: 12px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      background: none;
+      font: inherit;
+      font-size: 0.88rem;
+      color: var(--text-primary);
+      outline: none;
+    }
+  }
+
+  &__tree {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.88rem;
+
+    ul {
+      margin: 0;
+      padding: 0 0 0 16px;
+      list-style: none;
+    }
+  }
+
+  &__node {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 3px 6px;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      background: var(--table-background-odd-row);
+    }
+
+    strong {
+      font-weight: 600;
+    }
+
+    span {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__icon {
+    width: 14px;
+    color: var(--text-secondary-darken);
+    font-size: 12px;
+  }
+
+  &__node &__meta {
+    flex: 1 1 0;
+    min-width: 24px;
+    text-align: right;
+  }
+
+  &__meta {
+    margin-left: auto;
+    color: var(--text-secondary-darken);
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+    font-size: 11px;
+  }
+
+  &__loading,
+  &__hint {
+    margin: 0;
+    padding: 3px 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary-darken);
+  }
+
+  &__error {
+    margin: 0;
+    font-size: 0.81rem;
+    color: $red;
+  }
+}

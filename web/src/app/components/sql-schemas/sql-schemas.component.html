@@ -1,0 +1,120 @@
+<aside class="schemas" aria-label="Schemas">
+  <div class="schemas__header">
+    <h2 class="schemas__title">Schemas</h2>
+    @if (!stopped()) {
+    <button
+      class="schemas__reload"
+      type="button"
+      aria-label="Reload the schemas"
+      [disabled]="loading()"
+      (click)="reload.emit()"
+    >
+      <i class="fa-solid fa-rotate" [class.fa-spin]="loading()" aria-hidden="true"></i>
+    </button>
+    }
+  </div>
+
+  @if (stopped()) {
+  <p class="schemas__hint">Available once the database runs.</p>
+  } @else {
+  <label class="schemas__search">
+    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+    <input
+      type="search"
+      placeholder="Filter"
+      aria-label="Filter schemas, tables, and columns"
+      [value]="filter()"
+      (input)="filterChanged($event)"
+    />
+  </label>
+
+  @if (error(); as message) {
+  <p class="schemas__error" role="alert">{{ message }}</p>
+  }
+
+  <ul class="schemas__tree">
+    @for (schema of nodes(); track schema.schema.name) {
+    <li>
+      <button
+        class="schemas__node schemas__schema"
+        type="button"
+        [attr.aria-expanded]="schemaExpanded(schema)"
+        (click)="toggleSchema(schema)"
+        (dblclick)="insertName(schema.schema.name)"
+      >
+        <i
+          class="fa-solid schemas__icon"
+          [class.fa-caret-down]="schemaExpanded(schema)"
+          [class.fa-caret-right]="!schemaExpanded(schema)"
+          aria-hidden="true"
+        ></i>
+        <i class="fa-solid fa-database schemas__icon" aria-hidden="true"></i>
+        @if (schema.schema.name === openSchema()) {
+        <strong>{{ schema.schema.name }}</strong
+        ><span class="schemas__meta">open</span>
+        } @else {
+        <span>{{ schema.schema.name }}</span>
+        @if (schema.schema.virtual) {
+        <span class="schemas__meta">virtual</span>
+        } }
+      </button>
+      @if (schemaExpanded(schema)) {
+      <ul>
+        @for (table of schema.tables; track table.table.name) {
+        <li>
+          <button
+            class="schemas__node schemas__table"
+            type="button"
+            [attr.aria-expanded]="tableExpanded(schema, table)"
+            (click)="toggleTable(schema, table)"
+            (dblclick)="insertName(table.table.name)"
+          >
+            <i
+              class="fa-solid schemas__icon"
+              [class.fa-caret-down]="tableExpanded(schema, table)"
+              [class.fa-caret-right]="!tableExpanded(schema, table)"
+              aria-hidden="true"
+            ></i>
+            <i
+              class="fa-solid schemas__icon"
+              [class.fa-eye]="table.table.kind === 'view'"
+              [class.fa-table]="table.table.kind !== 'view'"
+              aria-hidden="true"
+            ></i>
+            <span>{{ table.table.name }}</span>
+          </button>
+          @if (tableExpanded(schema, table)) {
+          <ul>
+            @for (column of table.columns; track column.name) {
+            <li>
+              <button class="schemas__node schemas__column" type="button" (dblclick)="insertName(column.name)">
+                <span>{{ column.name }}</span
+                ><span class="schemas__meta">{{ column.type }}</span>
+              </button>
+            </li>
+            } @empty { @if (!schema.schema.columnsLoaded) {
+            <li class="schemas__loading">Loading…</li>
+            } }
+          </ul>
+          }
+        </li>
+        } @empty {
+        <li class="schemas__loading">No tables or views.</li>
+        }
+      </ul>
+      }
+    </li>
+    } @empty { @if (catalog()) {
+    <li class="schemas__loading">
+      {{ filter().trim() ? 'No names match the filter.' : 'The database has no schemas.' }}
+    </li>
+    } @else if (!error()) {
+    <li class="schemas__loading">Loading…</li>
+    } }
+  </ul>
+
+  <p class="schemas__hint">
+    {{ filter().trim() ? 'The filter matches schema, table, and column names.' : 'Double-click a name to insert it.' }}
+  </p>
+  }
+</aside>

@@ -2,11 +2,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Store, provideStore } from '@ngxs/store';
 import { Observable, Subject, firstValueFrom, of, throwError } from 'rxjs';
-import { StatementOutcome } from '@exa/services/local-api/local-api.models';
+import { SchemaSummary, StatementOutcome } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 import {
   CancelStatementsAction,
   CloseSqlSessionAction,
+  LoadSchemaColumnsAction,
+  LoadSchemasAction,
   RunStatementsAction,
   SelectResultTabAction,
 } from './sql.actions';
@@ -20,6 +22,16 @@ const rows = (schema: string | null = null): StatementOutcome => ({
   truncated: false,
   duration_ms: 3,
   schema,
+});
+
+const retail = (tables = ['REGIONS', 'SALES']): SchemaSummary[] => [
+  { name: 'RETAIL', virtual: false, objects: tables.map(name => ({ name, kind: 'table' as const })) },
+];
+
+const retailColumns = (): SchemaSummary => ({
+  name: 'RETAIL',
+  virtual: false,
+  objects: [{ name: 'REGIONS', kind: 'table', columns: [{ name: 'REGION_ID', type: 'DECIMAL(9,0)' }] }],
 });
 
 const until = async (condition: () => boolean) => {
@@ -44,6 +56,8 @@ describe('SqlState', () => {
     runStatement: jest.Mock<Observable<StatementOutcome>, [string, string, string]>;
     cancelStatement: jest.Mock;
     closeSqlSession: jest.Mock;
+    listSchemas: jest.Mock;
+    getSchema: jest.Mock;
   };
 
   beforeEach(() => {
@@ -53,6 +67,8 @@ describe('SqlState', () => {
       runStatement: jest.fn<Observable<StatementOutcome>, [string, string, string]>(() => of(rows())),
       cancelStatement: jest.fn(() => of(undefined)),
       closeSqlSession: jest.fn(),
+      listSchemas: jest.fn(() => of(retail())),
+      getSchema: jest.fn(() => of(retailColumns())),
     };
     TestBed.configureTestingModule({
       providers: [provideStore([SqlState]), { provide: LocalApiService, useValue: api }],
@@ -148,5 +164,62 @@ describe('SqlState', () => {
 
     expect(page()).toMatchObject({ selected: 0, sessionId: undefined, schema: null });
     expect(api.closeSqlSession).toHaveBeenCalledWith('default', 's1');
+  });
+
+  it('loads the schemas and the columns of a schema', async () => {
+    await firstValueFrom(store.dispatch(new LoadSchemasAction('default')));
+    expect(page().catalog).toEqual({
+      schemas: [
+        {
+          name: 'RETAIL',
+          virtual: false,
+          columnsLoaded: false,
+          tables: [
+            { name: 'REGIONS', kind: 'table', columns: [] },
+            { name: 'SALES', kind: 'table', columns: [] },
+          ],
+        },
+      ],
+    });
+
+    await firstValueFrom(store.dispatch(new LoadSchemaColumnsAction('default', ['RETAIL'])));
+
+    expect(api.getSchema).toHaveBeenCalledWith('default', 'RETAIL');
+    expect(page().catalog?.schemas[0]).toMatchObject({
+      columnsLoaded: true,
+      tables: [{ name: 'REGIONS', columns: [{ name: 'REGION_ID', type: 'DECIMAL(9,0)' }] }],
+    });
+  });
+
+  it('reports a schema listing that fails', async () => {
+    api.listSchemas.mockReturnValueOnce(throwError(() => problem(409, { detail: 'the database is not running' })));
+
+    await firstValueFrom(store.dispatch(new LoadSchemasAction('default')));
+
+    expect(page()).toMatchObject({ catalogError: 'the database is not running', catalogLoading: false });
+  });
+
+  it('reads the names again after a statement that changes them', async () => {
+    await firstValueFrom(store.dispatch(new LoadSchemasAction('default')));
+    await firstValueFrom(store.dispatch(new LoadSchemaColumnsAction('default', ['RETAIL'])));
+    api.listSchemas.mockReturnValueOnce(of(retail(['REGIONS', 'RETURNS', 'SALES'])));
+    api.getSchema.mockReturnValueOnce(
+      of({
+        ...retailColumns(),
+        objects: [
+          ...retailColumns().objects,
+          { name: 'RETURNS', kind: 'table', columns: [{ name: 'ID', type: 'DECIMAL(18,0)' }] },
+        ],
+      })
+    );
+
+    await run('SELECT 1');
+    expect(api.listSchemas).toHaveBeenCalledTimes(1);
+
+    await run('-- returns\ncreate table RETAIL.RETURNS (ID INT)');
+
+    expect(api.listSchemas).toHaveBeenCalledTimes(2);
+    expect(api.getSchema).toHaveBeenCalledTimes(2);
+    expect(page().catalog?.schemas[0].tables.map(table => table.name)).toEqual(['REGIONS', 'RETURNS']);
   });
 });

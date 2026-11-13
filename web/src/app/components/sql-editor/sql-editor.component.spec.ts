@@ -80,7 +80,7 @@ describe('SqlEditorComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('.cm-sql-running')).toHaveLength(0);
   });
 
-  it('accepts a completion with Tab and indents otherwise', async () => {
+  it('completes names with Tab and indents elsewhere', async () => {
     fixture.componentRef.setInput('catalog', {
       schemas: [
         {
@@ -94,20 +94,23 @@ describe('SqlEditorComponent', () => {
     fixture.detectChanges();
     editor.replaceAll('SELECT * FROM RETAIL.SA');
     editor.select(editor.text().length);
+    const completions = () => fixture.nativeElement.querySelector('.cm-tooltip-autocomplete');
 
-    content().dispatchEvent(new KeyboardEvent('keydown', { key: ' ', ctrlKey: true, bubbles: true, cancelable: true }));
-    for (let attempt = 0; attempt < 20 && !fixture.nativeElement.querySelector('.cm-tooltip-autocomplete'); attempt++) {
+    press({ key: 'Tab' });
+    for (let attempt = 0; attempt < 20 && !completions(); attempt++) {
       await new Promise(resolve => setTimeout(resolve, 20));
     }
-    expect(fixture.nativeElement.querySelector('.cm-tooltip-autocomplete')).toBeTruthy();
+    expect(completions()).toBeTruthy();
+    expect(editor.text()).toBe('SELECT * FROM RETAIL.SA');
+
     // CodeMirror ignores accepting a completion within its interaction delay after the list opens.
     await new Promise(resolve => setTimeout(resolve, 100));
     press({ key: 'Tab' });
     expect(editor.text()).toBe('SELECT * FROM RETAIL.SALES');
 
-    editor.replaceAll('SELECT 1');
     editor.select(0);
+    editor.insert('-- x\n');
     press({ key: 'Tab' });
-    expect(editor.text()).toBe('  SELECT 1');
+    expect(editor.text()).toBe('-- x\n  SELECT * FROM RETAIL.SALES');
   });
 });
