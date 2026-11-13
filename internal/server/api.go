@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-local-ui/internal/imports"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/operations"
 	"github.com/exasol/exasol-local-ui/internal/sql"
@@ -51,6 +52,7 @@ type api struct {
 	openFolder func(ctx context.Context, path string) error
 	operations *operations.Manager
 	sql        *sql.Manager
+	uploads    *imports.Uploads
 }
 
 func (a *api) register(mux *http.ServeMux) {
@@ -65,6 +67,7 @@ func (a *api) register(mux *http.ServeMux) {
 	a.registerDiagnostics(mux)
 	a.registerSQL(mux)
 	a.registerSchemas(mux)
+	a.registerUploads(mux)
 	mux.HandleFunc("/api/", func(response http.ResponseWriter, _ *http.Request) {
 		writeProblem(response, http.StatusNotFound, "The API has no such resource.")
 	})

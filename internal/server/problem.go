@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+const blankProblem = "about:blank"
+
 // problem is an RFC 9457 problem detail, as the Administration API returns
 // for errors.
 type problem struct {
@@ -15,7 +17,7 @@ type problem struct {
 
 func writeProblem(response http.ResponseWriter, status int, detail string) {
 	body, err := json.Marshal(problem{
-		Type:   "about:blank",
+		Type:   blankProblem,
 		Title:  http.StatusText(status),
 		Detail: detail,
 	})

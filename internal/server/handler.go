@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-local-ui/internal/imports"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/opener"
 	"github.com/exasol/exasol-local-ui/internal/operations"
@@ -25,6 +26,9 @@ type Config struct {
 	// SQL holds the SQL sessions; it defaults to a manager that connects
 	// through the driver.
 	SQL *sql.Manager
+	// Uploads keeps uploaded files; it defaults to the user's temporary
+	// folder.
+	Uploads *imports.Uploads
 	// WebApp holds the compiled browser application.
 	WebApp fs.FS
 }
@@ -43,6 +47,10 @@ func NewHandler(config Config) http.Handler {
 		config.SQL = sql.NewManager(sql.NewDriverOpener())
 	}
 
+	if config.Uploads == nil {
+		config.Uploads = imports.NewUploads(imports.DefaultUploadsDir())
+	}
+
 	mux := http.NewServeMux()
 	(&api{
 		launcher:   config.Launcher,
@@ -50,6 +58,7 @@ func NewHandler(config Config) http.Handler {
 		openFolder: config.OpenFolder,
 		operations: config.Operations,
 		sql:        config.SQL,
+		uploads:    config.Uploads,
 	}).register(mux)
 	mux.Handle("/", newWebApp(config.WebApp))
 

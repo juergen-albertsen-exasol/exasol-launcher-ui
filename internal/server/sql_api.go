@@ -344,7 +344,7 @@ func answerSQLError(response http.ResponseWriter, err error) {
 
 func writeStatementProblem(response http.ResponseWriter, err *sql.StatementError) {
 	body, marshalErr := json.Marshal(statementProblem{
-		Type:   "about:blank",
+		Type:   blankProblem,
 		Title:  http.StatusText(http.StatusUnprocessableEntity),
 		Detail: err.Message,
 		Code:   err.Code,

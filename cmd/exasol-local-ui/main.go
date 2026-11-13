@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/exasol/exasol-local-ui/internal/imports"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/opener"
 	"github.com/exasol/exasol-local-ui/internal/operations"
@@ -119,6 +120,9 @@ func serve(ctx context.Context, opts options, env environment) error {
 	sessions := sql.NewManager(sql.NewDriverOpener())
 	defer sessions.Close(context.WithoutCancel(ctx))
 
+	uploads := imports.NewUploads(imports.DefaultUploadsDir())
+	defer uploads.Close()
+
 	token := server.NewToken()
 	accessPath := "/"
 	if opts.deployment != "" {
@@ -136,8 +140,9 @@ func serve(ctx context.Context, opts options, env environment) error {
 			Launcher: launcherClient,
 			Operations: operations.NewManager(
 				ctx, launcherClient, launcherClient.InvalidateListing),
-			SQL:    sessions,
-			WebApp: webApp,
+			SQL:     sessions,
+			Uploads: uploads,
+			WebApp:  webApp,
 		}))
 
 	_, _ = fmt.Fprintf(env.stdout, "Exasol Local UI is available at %s\n", accessURL)
