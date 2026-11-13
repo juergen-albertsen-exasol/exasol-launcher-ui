@@ -3,7 +3,6 @@
 ## Purpose
 
 Frame the deployment pages in the Administration UI layout and keep the browser application usable across reloads and server restarts.
-
 ## Requirements
 ### Requirement: Deployment pages use the Administration UI layout
 
@@ -39,4 +38,19 @@ telling the user to open the access URL that `exasol-local-ui` printed.
 - **WHEN** the server restarts while the application is open and the page
   makes its next API request
 - **THEN** the page shows the message to open the newly printed access URL
+
+### Requirement: The Exasol logo returns to the Deployments page
+
+The Exasol logo at the top left of every page SHALL be a link to the
+Deployments page.
+
+#### Scenario: The logo leaves an overview
+
+- **WHEN** the user selects the Exasol logo on the overview page of `default`
+- **THEN** the application opens the Deployments page
+
+#### Scenario: The logo reloads the Deployments page
+
+- **WHEN** the user selects the Exasol logo on the Deployments page
+- **THEN** the application shows the Deployments page
 
