@@ -59,6 +59,7 @@
         >
           <i class="fa-solid fa-align-left" aria-hidden="true"></i>Format
         </button>
+        <exa-sql-history [deployment]="name()" (pick)="insert($event)"></exa-sql-history>
         @if (ready()) {
         <span class="sql__schema">
           @if (page().schema; as schema) { Open schema <strong>{{ schema }}</strong> } @else { No schema open }
@@ -68,6 +69,7 @@
 
       <div class="sql__editor">
         <exa-sql-editor
+          [initialText]="savedText()"
           [catalog]="page().catalog"
           (textChange)="textChanged($event)"
           (run)="run()"

@@ -73,8 +73,10 @@ describe('PageSqlComponent', () => {
     component.detectChanges();
   };
 
+  beforeEach(() => localStorage.clear());
+
   const render = async (fixture: Partial<LocalApiFixture> = {}) => {
-    api = mockLocalApi({ deployments: [summary('default')], ...fixture });
+    api = mockLocalApi({ deployments: [summary('default'), summary('test')], ...fixture });
     await TestBed.configureTestingModule({
       imports: [PageSqlComponent],
       providers: [
@@ -86,8 +88,12 @@ describe('PageSqlComponent', () => {
     }).compileComponents();
 
     await firstValueFrom(TestBed.inject(Store).dispatch(new LoadDeploymentsAction()));
+    await create();
+  };
+
+  const create = async (name = 'default') => {
     component = TestBed.createComponent(PageSqlComponent);
-    component.componentRef.setInput('name', 'default');
+    component.componentRef.setInput('name', name);
     await refresh();
     root = component.debugElement;
   };
@@ -381,5 +387,69 @@ describe('PageSqlComponent', () => {
     expect(text('.schemas__hint')).toBe('Available once the database runs.');
     expect(root.query(By.css('.schemas__search'))).toBeNull();
     expect(api.listSchemas).not.toHaveBeenCalled();
+  });
+
+  it('keeps the text of each deployment', async () => {
+    await render();
+    await type('SELECT 1 -- default');
+
+    component.destroy();
+    await create();
+    expect(editor().text()).toBe('SELECT 1 -- default');
+
+    component.componentRef.setInput('name', 'test');
+    await refresh();
+    expect(editor().text()).toBe('');
+
+    await type('SELECT 2 -- test');
+    component.componentRef.setInput('name', 'default');
+    await refresh();
+    expect(editor().text()).toBe('SELECT 1 -- default');
+  });
+
+  it('shows the saved text while the database is stopped', async () => {
+    localStorage.setItem('exasol-local-ui:sql:default:text', 'SELECT 42');
+
+    await render({ deployments: [summary('default', 'stopped')] });
+
+    expect(editor().text()).toBe('SELECT 42');
+  });
+
+  it('lists, searches, inserts, and clears the history', async () => {
+    await render({
+      sqlOutcomes: { 'SELECT 1': resultSet([['1', 'DECIMAL(1,0)']], [['1']]) },
+      sqlFailures: { 'SELECT X': statementFailure('object X not found [line 1, column 8]') },
+    });
+    await type('SELECT 1;\nSELECT X;');
+    await click('.sql__run-all');
+
+    await click('.history__toggle');
+    const entries = () =>
+      root.queryAll(By.css('.history__entry')).map(entry => ({
+        sql: entry.query(By.css('.history__sql')).nativeElement.textContent.trim(),
+        when: entry.query(By.css('.history__when')).nativeElement.textContent.trim(),
+        sub: entry.query(By.css('.history__sub')).nativeElement.textContent.trim(),
+      }));
+    expect(entries()).toEqual([
+      { sql: 'SELECT X', when: 'just now', sub: '[42000] object X not found [line 1, column 8]' },
+      { sql: 'SELECT 1', when: 'just now', sub: '1 row · 0.08 s' },
+    ]);
+    expect(root.queryAll(By.css('.history__entry .history__bad'))).toHaveLength(1);
+
+    const search = root.query(By.css('.history__search input')).nativeElement as HTMLInputElement;
+    search.value = 'x';
+    search.dispatchEvent(new Event('input'));
+    await refresh();
+    expect(entries().map(entry => entry.sql)).toEqual(['SELECT X']);
+
+    editor().select(0);
+    await click('.history__entry');
+    expect(editor().text()).toBe('SELECT XSELECT 1;\nSELECT X;');
+    expect(root.query(By.css('.history__menu'))).toBeNull();
+
+    await click('.history__toggle');
+    await click('.history__clear');
+    expect(text('.history__empty')).toBe('No statements have run on this deployment in this browser.');
+    expect(localStorage.getItem('exasol-local-ui:sql:default:history')).toBeNull();
   });
 });

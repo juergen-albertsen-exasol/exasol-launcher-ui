@@ -13,6 +13,7 @@ import {
 import { Store } from '@ngxs/store';
 import { ErrorNotificationsAction, ExaButtonComponent } from '@exasol/ui-common';
 import { SqlEditorComponent } from '@exa/components/sql-editor/sql-editor.component';
+import { SqlHistoryComponent } from '@exa/components/sql-history/sql-history.component';
 import { SqlResultsComponent } from '@exa/components/sql-results/sql-results.component';
 import { SqlSchemasComponent } from '@exa/components/sql-schemas/sql-schemas.component';
 import {
@@ -25,6 +26,7 @@ import { LocalApiService, problemDetail } from '@exa/services/local-api/local-ap
 import { formatSql } from '@exa/sql/format';
 import { formatElapsed, lineAndColumn } from '@exa/sql/labels';
 import { Statement, positionInStatement, splitStatements, statementAt } from '@exa/sql/splitter';
+import { loadText, saveText } from '@exa/sql/storage';
 import { LoadDeploymentsAction, SelectDeploymentAction } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
 import { RUNNING_VERB } from '@exa/store/operations/operation-labels';
@@ -61,7 +63,7 @@ const errorOffset = (tab: ResultTab | undefined): number | undefined => {
   selector: 'exa-page-sql',
   templateUrl: './page-sql.component.html',
   styleUrls: ['./page-sql.component.scss'],
-  imports: [ExaButtonComponent, SqlEditorComponent, SqlResultsComponent, SqlSchemasComponent],
+  imports: [ExaButtonComponent, SqlEditorComponent, SqlHistoryComponent, SqlResultsComponent, SqlSchemasComponent],
 })
 export class PageSqlComponent {
   private readonly store = inject(Store);
@@ -96,6 +98,7 @@ export class PageSqlComponent {
   });
   readonly selectedTab = computed(() => this.page().tabs[this.page().selected]);
   private readonly text = signal('');
+  readonly savedText = computed(() => loadText(this.name()) ?? '');
   readonly goToLabel = computed(() => {
     const offset = errorOffset(this.selectedTab());
     if (offset === undefined) return undefined;
@@ -112,6 +115,7 @@ export class PageSqlComponent {
       const name = this.name();
       onCleanup(() => this.store.dispatch(new CloseSqlSessionAction(name)));
     });
+    this.showTextOfDeployment();
     effect(() => {
       const name = this.name();
       if (this.ready()) untracked(() => this.store.dispatch(new LoadSchemasAction(name)));
@@ -134,6 +138,7 @@ export class PageSqlComponent {
 
   textChanged(text: string): void {
     this.text.set(text);
+    saveText(this.name(), text);
   }
 
   /** Runs the selected statements, or the statement at the cursor. */
@@ -210,6 +215,20 @@ export class PageSqlComponent {
 
   start(): void {
     this.store.dispatch(new RunOperationAction(this.name(), OperationKind.START));
+  }
+
+  // The router keeps the page when the deployment changes, so the editor takes the other deployment's text.
+  private showTextOfDeployment(): void {
+    let shown: string | undefined;
+    effect(() => {
+      const name = this.name();
+      const saved = this.savedText();
+      untracked(() => {
+        this.text.set(saved);
+        if (shown !== undefined && shown !== name) this.editor().replaceAll(saved);
+        shown = name;
+      });
+    });
   }
 
   private dispatchRun(statements: StatementToRun[]): void {

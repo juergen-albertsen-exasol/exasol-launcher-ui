@@ -1,5 +1,5 @@
 import { ResultTab } from '@exa/store/sql/sql.state';
-import { lineAndColumn, resultSummary, statementLabel, tabLabel } from './labels';
+import { formatWhen, historySummary, lineAndColumn, resultSummary, statementLabel, tabLabel } from './labels';
 
 const tab = (overrides: Partial<ResultTab>): ResultTab => ({
   sql: 'SELECT 1',
@@ -90,5 +90,30 @@ describe('SQL labels', () => {
     const text = 'OPEN SCHEMA R;\n\nSELECT r.REGOIN_NAME';
     expect(lineAndColumn(text, text.indexOf('REGOIN'))).toEqual({ line: 3, column: 10 });
     expect(lineAndColumn(text, 0)).toEqual({ line: 1, column: 1 });
+  });
+
+  it('says when a statement ran', () => {
+    const now = new Date(2026, 10, 13, 15, 30).getTime();
+    const at = (date: Date) => date.toISOString();
+    expect(formatWhen(at(new Date(2026, 10, 13, 15, 29, 30)), now)).toBe('just now');
+    expect(formatWhen(at(new Date(2026, 10, 13, 15, 25)), now)).toBe('5 min ago');
+    expect(formatWhen(at(new Date(2026, 10, 13, 9, 5)), now)).toBe('Today 09:05');
+    expect(formatWhen(at(new Date(2026, 10, 12, 17, 42)), now)).toBe('Yesterday 17:42');
+    expect(formatWhen(at(new Date(2026, 9, 1, 8, 0)), now)).toBe('2026-10-01 08:00');
+  });
+
+  it('summarizes history entries', () => {
+    const entry = { sql: 'SELECT 1', at: '', ms: 80 };
+    expect(historySummary({ ...entry, outcome: 'succeeded', rows: 5 })).toBe('5 rows · 0.08 s');
+    expect(historySummary({ ...entry, sql: 'OPEN SCHEMA R', outcome: 'succeeded', affected: 0, ms: 10 })).toBe(
+      '0.01 s'
+    );
+    expect(
+      historySummary({ ...entry, sql: 'INSERT INTO T SELECT 1', outcome: 'succeeded', affected: 31, ms: 21_400 })
+    ).toBe('31 rows affected · 21.40 s');
+    expect(historySummary({ ...entry, outcome: 'failed', error: '[42000] object X not found' })).toBe(
+      '[42000] object X not found'
+    );
+    expect(historySummary({ ...entry, outcome: 'cancelled', ms: 2_300 })).toBe('cancelled · 2.30 s');
   });
 });

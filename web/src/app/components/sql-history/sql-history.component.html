@@ -1,0 +1,49 @@
+<button class="history__toggle" type="button" aria-haspopup="menu" [attr.aria-expanded]="open()" (click)="toggle()">
+  <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>History<i
+    class="fa-solid fa-caret-down"
+    aria-hidden="true"
+  ></i>
+</button>
+
+@if (open()) {
+<div class="history__menu" role="menu" [attr.aria-label]="'History of ' + deployment()">
+  <label class="history__search">
+    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+    <input
+      type="search"
+      placeholder="Search the history"
+      aria-label="Search the history"
+      [value]="search()"
+      (input)="searchChanged($event)"
+    />
+  </label>
+  <div class="history__entries">
+    @for (entry of shown(); track $index) {
+    <button class="history__entry" type="button" role="menuitem" (click)="choose(entry)">
+      @switch (entry.outcome) { @case ('succeeded') {
+      <i class="fa-solid fa-check history__ok" aria-hidden="true"></i>
+      } @case ('failed') {
+      <i class="fa-solid fa-circle-xmark history__bad" aria-hidden="true"></i>
+      } @default {
+      <i class="fa-solid fa-ban" aria-hidden="true"></i>
+      } }
+      <code class="history__sql">{{ oneLine(entry.sql) }}</code>
+      <span class="history__when">{{ when(entry) }}</span>
+      <span class="history__sub">{{ summary(entry) }}</span>
+    </button>
+    } @empty {
+    <p class="history__empty">
+      {{ empty() ? 'No statements have run on this deployment in this browser.' : 'No statements match the search.' }}
+    </p>
+    }
+  </div>
+  <div class="history__footer">
+    <span
+      >The last 100 statements on this deployment, kept in this browser. Choose one to insert it at the cursor.</span
+    >
+    <button class="history__clear" type="button" [disabled]="empty()" (click)="clear()">
+      <i class="fa-solid fa-trash" aria-hidden="true"></i>Clear
+    </button>
+  </div>
+</div>
+}

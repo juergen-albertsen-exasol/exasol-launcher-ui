@@ -7,6 +7,7 @@ import { SchemaSummary, StatementOutcome, StatementProblem } from '@exa/services
 import { LocalApiService, problemDetail } from '@exa/services/local-api/local-api.service';
 import { Catalog, DDL_KEYWORDS, SchemaInfo } from '@exa/sql/catalog';
 import { firstKeyword } from '@exa/sql/splitter';
+import { addHistory } from '@exa/sql/storage';
 import {
   CancelStatementsAction,
   CloseSqlSessionAction,
@@ -175,16 +176,32 @@ export class SqlState {
   }
 
   private async runOne(ctx: StateContext<SqlStateModel>, name: string, index: number, sql: string): Promise<boolean> {
+    const started = Date.now();
+    const at = new Date(started).toISOString();
     try {
       const outcome = await this.execute(ctx, name, sql);
       this.updateTab(ctx, name, index, { status: 'succeeded', outcome });
       this.update(ctx, name, { schema: outcome.schema, selected: index });
+      addHistory(name, {
+        sql,
+        at,
+        ms: outcome.duration_ms,
+        outcome: 'succeeded',
+        ...(outcome.type === 'result_set' ? { rows: outcome.total_rows } : { affected: outcome.row_count }),
+      });
       return true;
     } catch (error) {
       const problem = asProblem(error);
       const cancelled = this.page(ctx, name).cancelling && problem.code === ABORTED_CODE;
       this.updateTab(ctx, name, index, { status: cancelled ? 'cancelled' : 'failed', error: problem });
       this.update(ctx, name, { selected: index });
+      addHistory(name, {
+        sql,
+        at,
+        ms: Date.now() - started,
+        outcome: cancelled ? 'cancelled' : 'failed',
+        error: problem.code ? `[${problem.code}] ${problem.detail}` : problem.detail,
+      });
       return false;
     }
   }

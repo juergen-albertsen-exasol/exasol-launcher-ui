@@ -1,4 +1,5 @@
 import type { ResultTab } from '@exa/store/sql/sql.state';
+import type { HistoryEntry } from './storage';
 
 const OBJECT_VERBS = new Set(['CREATE', 'DROP', 'ALTER', 'OPEN', 'CLOSE', 'TRUNCATE', 'RENAME', 'COMMENT']);
 const MODIFIERS = new Set(['OR', 'REPLACE', 'FORCE', 'IF', 'NOT', 'EXISTS', 'GLOBAL', 'LOCAL']);
@@ -69,4 +70,41 @@ export function lineAndColumn(text: string, offset: number): { line: number; col
   const before = text.slice(0, offset);
   const line = before.split('\n').length;
   return { line, column: offset - (before.lastIndexOf('\n') + 1) + 1 };
+}
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+
+const time = (date: Date) =>
+  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+/** When a statement ran: minutes ago within the hour, else the day and time. */
+export function formatWhen(at: string, now: number): string {
+  const date = new Date(at);
+  const ago = now - date.getTime();
+  if (ago < MINUTE_MS) return 'just now';
+  if (ago < HOUR_MS) return `${Math.floor(ago / MINUTE_MS)} min ago`;
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date >= today) return `Today ${time(date)}`;
+  if (date >= yesterday) return `Yesterday ${time(date)}`;
+  const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(
+    2,
+    '0'
+  )}`;
+  return `${day} ${time(date)}`;
+}
+
+/** How a statement in the history ended: its rows and duration, or its error. */
+export function historySummary(entry: HistoryEntry): string {
+  const duration = formatDuration(entry.ms);
+  if (entry.outcome === 'failed') return entry.error ?? 'failed';
+  if (entry.outcome === 'cancelled') return `cancelled · ${duration}`;
+  if (entry.rows !== undefined) return `${formatRows(entry.rows)} · ${duration}`;
+  if (entry.affected !== undefined && ROW_VERBS.has(words(entry.sql)[0] ?? '')) {
+    return `${formatRows(entry.affected)} affected · ${duration}`;
+  }
+  return duration;
 }

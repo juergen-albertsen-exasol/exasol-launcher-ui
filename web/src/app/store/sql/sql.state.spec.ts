@@ -4,6 +4,7 @@ import { Store, provideStore } from '@ngxs/store';
 import { Observable, Subject, firstValueFrom, of, throwError } from 'rxjs';
 import { SchemaSummary, StatementOutcome } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
+import { loadHistory } from '@exa/sql/storage';
 import {
   CancelStatementsAction,
   CloseSqlSessionAction,
@@ -61,6 +62,7 @@ describe('SqlState', () => {
   };
 
   beforeEach(() => {
+    localStorage.clear();
     let sessions = 0;
     api = {
       openSqlSession: jest.fn(() => of({ id: `s${++sessions}` })),
@@ -221,5 +223,22 @@ describe('SqlState', () => {
     expect(api.listSchemas).toHaveBeenCalledTimes(2);
     expect(api.getSchema).toHaveBeenCalledTimes(2);
     expect(page().catalog?.schemas[0].tables.map(table => table.name)).toEqual(['REGIONS', 'RETURNS']);
+  });
+
+  it('keeps every statement run in the history, newest first', async () => {
+    api.runStatement
+      .mockReturnValueOnce(of({ type: 'row_count', row_count: 12, duration_ms: 7, schema: null }))
+      .mockReturnValueOnce(of(rows()))
+      .mockReturnValueOnce(throwError(() => problem(422, { detail: 'object X not found', code: '42000' })));
+
+    await run('DELETE FROM T', 'SELECT 1', 'SELECT X');
+
+    expect(loadHistory('default')).toEqual([
+      expect.objectContaining({ sql: 'SELECT X', outcome: 'failed', error: '[42000] object X not found' }),
+      expect.objectContaining({ sql: 'SELECT 1', outcome: 'succeeded', rows: 1, ms: 3 }),
+      expect.objectContaining({ sql: 'DELETE FROM T', outcome: 'succeeded', affected: 12, ms: 7 }),
+    ]);
+    expect(loadHistory('default')[0].at).toMatch(/^\d{4}-\d\d-\d\dT/);
+    expect(loadHistory('test')).toEqual([]);
   });
 });
