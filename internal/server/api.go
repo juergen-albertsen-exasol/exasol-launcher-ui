@@ -59,6 +59,7 @@ func (a *api) register(mux *http.ServeMux) {
 	a.registerConfiguration(mux)
 	a.registerOperations(mux)
 	a.registerSidecars(mux)
+	a.registerScriptLanguages(mux)
 	mux.HandleFunc("/api/", func(response http.ResponseWriter, _ *http.Request) {
 		writeProblem(response, http.StatusNotFound, "The API has no such resource.")
 	})
