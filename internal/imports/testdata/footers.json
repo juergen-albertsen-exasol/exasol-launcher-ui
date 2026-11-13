@@ -1,0 +1,402 @@
+{
+ "types/all_types.parquet": {
+  "rows": 1100,
+  "schema": [
+   {
+    "repetition_type": "REQUIRED",
+    "name": "duckdb_schema",
+    "num_children": 21
+   },
+   {
+    "type": "BOOLEAN",
+    "repetition_type": "OPTIONAL",
+    "name": "c_boolean"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_int8",
+    "converted_type": "INT_8"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_int16",
+    "converted_type": "INT_16"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_int32",
+    "converted_type": "INT_32"
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_int64",
+    "converted_type": "INT_64"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_uint8",
+    "converted_type": "UINT_8"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_uint16",
+    "converted_type": "UINT_16"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_uint32",
+    "converted_type": "UINT_32"
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_uint64",
+    "converted_type": "UINT_64"
+   },
+   {
+    "type": "FLOAT",
+    "repetition_type": "OPTIONAL",
+    "name": "c_float"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "c_double"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_decimal_4_2",
+    "converted_type": "DECIMAL",
+    "scale": 2,
+    "precision": 4,
+    "logical_type": {
+     "type": "DECIMAL",
+     "scale": 2,
+     "precision": 4
+    }
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_decimal_9_3",
+    "converted_type": "DECIMAL",
+    "scale": 3,
+    "precision": 9,
+    "logical_type": {
+     "type": "DECIMAL",
+     "scale": 3,
+     "precision": 9
+    }
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_decimal_18_6",
+    "converted_type": "DECIMAL",
+    "scale": 6,
+    "precision": 18,
+    "logical_type": {
+     "type": "DECIMAL",
+     "scale": 6,
+     "precision": 18
+    }
+   },
+   {
+    "type": "FIXED_LEN_BYTE_ARRAY",
+    "type_length": 16,
+    "repetition_type": "OPTIONAL",
+    "name": "c_decimal_36_10",
+    "converted_type": "DECIMAL",
+    "scale": 10,
+    "precision": 36,
+    "logical_type": {
+     "type": "DECIMAL",
+     "scale": 10,
+     "precision": 36
+    }
+   },
+   {
+    "type": "BYTE_ARRAY",
+    "repetition_type": "OPTIONAL",
+    "name": "c_string",
+    "converted_type": "UTF8"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "c_date",
+    "converted_type": "DATE"
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_timestamp_us",
+    "converted_type": "TIMESTAMP_MICROS",
+    "logical_type": {
+     "type": "TIMESTAMP",
+     "isAdjustedToUTC": false,
+     "unit": "MICROS"
+    }
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_timestamp_ms",
+    "converted_type": "TIMESTAMP_MILLIS",
+    "logical_type": {
+     "type": "TIMESTAMP",
+     "isAdjustedToUTC": false,
+     "unit": "MILLIS"
+    }
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_timestamp_ns",
+    "logical_type": {
+     "type": "TIMESTAMP",
+     "isAdjustedToUTC": false,
+     "unit": "NANOS"
+    }
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_timestamptz",
+    "converted_type": "TIMESTAMP_MICROS",
+    "logical_type": {
+     "type": "TIMESTAMP",
+     "isAdjustedToUTC": true,
+     "unit": "MICROS"
+    }
+   }
+  ]
+ },
+ "types/unsupported.parquet": {
+  "rows": 1000,
+  "schema": [
+   {
+    "repetition_type": "REQUIRED",
+    "name": "duckdb_schema",
+    "num_children": 7
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "id",
+    "converted_type": "INT_32"
+   },
+   {
+    "type": "BYTE_ARRAY",
+    "repetition_type": "OPTIONAL",
+    "name": "c_binary"
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "c_time",
+    "converted_type": "TIME_MICROS",
+    "logical_type": {
+     "type": "TIME",
+     "isAdjustedToUTC": false,
+     "unit": "MICROS"
+    }
+   },
+   {
+    "type": "FIXED_LEN_BYTE_ARRAY",
+    "type_length": 16,
+    "repetition_type": "OPTIONAL",
+    "name": "c_uuid",
+    "logical_type": {
+     "type": "UUID"
+    }
+   },
+   {
+    "repetition_type": "OPTIONAL",
+    "name": "address",
+    "num_children": 2
+   },
+   {
+    "type": "BYTE_ARRAY",
+    "repetition_type": "OPTIONAL",
+    "name": "street",
+    "converted_type": "UTF8"
+   },
+   {
+    "type": "BYTE_ARRAY",
+    "repetition_type": "OPTIONAL",
+    "name": "zip",
+    "converted_type": "UTF8"
+   },
+   {
+    "repetition_type": "OPTIONAL",
+    "name": "scores",
+    "num_children": 1,
+    "converted_type": "LIST"
+   },
+   {
+    "repetition_type": "REPEATED",
+    "name": "list",
+    "num_children": 1
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "element",
+    "converted_type": "INT_64"
+   },
+   {
+    "repetition_type": "OPTIONAL",
+    "name": "attributes",
+    "num_children": 1,
+    "converted_type": "MAP"
+   },
+   {
+    "repetition_type": "REPEATED",
+    "name": "key_value",
+    "num_children": 2
+   },
+   {
+    "type": "BYTE_ARRAY",
+    "repetition_type": "REQUIRED",
+    "name": "key",
+    "converted_type": "UTF8"
+   },
+   {
+    "type": "BYTE_ARRAY",
+    "repetition_type": "OPTIONAL",
+    "name": "value",
+    "converted_type": "UTF8"
+   }
+  ]
+ },
+ "nyc-taxi/yellow_tripdata/yellow_tripdata_2024-01.parquet": {
+  "rows": 2964624,
+  "schema": [
+   {
+    "repetition_type": "REQUIRED",
+    "name": "schema",
+    "num_children": 19
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "VendorID"
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "tpep_pickup_datetime",
+    "converted_type": "TIMESTAMP_MICROS",
+    "logical_type": {
+     "type": "TIMESTAMP",
+     "isAdjustedToUTC": false,
+     "unit": "MICROS"
+    }
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "tpep_dropoff_datetime",
+    "converted_type": "TIMESTAMP_MICROS",
+    "logical_type": {
+     "type": "TIMESTAMP",
+     "isAdjustedToUTC": false,
+     "unit": "MICROS"
+    }
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "passenger_count"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "trip_distance"
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "RatecodeID"
+   },
+   {
+    "type": "BYTE_ARRAY",
+    "repetition_type": "OPTIONAL",
+    "name": "store_and_fwd_flag",
+    "converted_type": "UTF8",
+    "logical_type": {
+     "type": "STRING"
+    }
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "PULocationID"
+   },
+   {
+    "type": "INT32",
+    "repetition_type": "OPTIONAL",
+    "name": "DOLocationID"
+   },
+   {
+    "type": "INT64",
+    "repetition_type": "OPTIONAL",
+    "name": "payment_type"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "fare_amount"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "extra"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "mta_tax"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "tip_amount"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "tolls_amount"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "improvement_surcharge"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "total_amount"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "congestion_surcharge"
+   },
+   {
+    "type": "DOUBLE",
+    "repetition_type": "OPTIONAL",
+    "name": "Airport_fee"
+   }
+  ]
+ }
+}

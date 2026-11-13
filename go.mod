@@ -4,6 +4,7 @@ go 1.27.0
 
 require (
 	github.com/exasol/exasol-driver-go v1.2.0
+	github.com/parquet-go/parquet-go v0.32.0
 	github.com/stretchr/testify v1.12.1
 )
 
@@ -15,7 +16,6 @@ require (
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/parquet-go/bitpack v1.1.0 // indirect
 	github.com/parquet-go/jsonlite v1.5.5 // indirect
-	github.com/parquet-go/parquet-go v0.32.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.29 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/twpayne/go-geom v1.6.1 // indirect
