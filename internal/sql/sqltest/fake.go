@@ -36,9 +36,10 @@ type Response struct {
 }
 
 // Fake is a database whose answers tests define. Unknown statements fail
-// with error code 42000. Each connection keeps its own open schema, which
-// OPEN SCHEMA sets and SELECT CURRENT_SCHEMA reports, and KILL STATEMENT IN
-// SESSION aborts a statement that blocks.
+// with error code 42000, while COMMIT and ROLLBACK succeed. Each connection
+// keeps its own open schema, which OPEN SCHEMA sets and SELECT
+// CURRENT_SCHEMA reports, and KILL STATEMENT IN SESSION aborts a statement
+// that blocks.
 type Fake struct {
 	mutex      sync.Mutex
 	responses  map[string]Response
@@ -49,6 +50,8 @@ type Fake struct {
 	closed     bool
 	connectErr error
 	running    chan string
+	// transactions counts the connections OpenTransaction opened.
+	transactions int
 }
 
 func NewFake() *Fake {
@@ -130,6 +133,34 @@ func (f *Fake) Open(_ context.Context, _ string, target database.Target) (sql.Co
 	return opened, nil
 }
 
+// OpenTransaction opens a connection as Open does, which Transactions
+// counts.
+func (f *Fake) OpenTransaction(
+	ctx context.Context,
+	deployment string,
+	target database.Target,
+) (sql.Conn, error) {
+	opened, err := f.Open(ctx, deployment, target)
+	if err != nil {
+		return nil, err
+	}
+
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	f.transactions++
+
+	return opened, nil
+}
+
+// Transactions returns the number of connections OpenTransaction opened.
+func (f *Fake) Transactions() int {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	return f.transactions
+}
+
 func (f *Fake) Close() error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
@@ -177,6 +208,8 @@ func (c *conn) Execute(
 	case strings.HasPrefix(statement, killPrefix):
 		c.fake.kill(strings.TrimPrefix(statement, killPrefix))
 
+		return 0, nil
+	case statement == "COMMIT" || statement == "ROLLBACK":
 		return 0, nil
 	case strings.HasPrefix(statement, "OPEN SCHEMA "):
 		schema := strings.Trim(strings.TrimPrefix(statement, "OPEN SCHEMA "), `"`)

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/exasol/exasol-local-ui/internal/imports"
 	"github.com/exasol/exasol-local-ui/internal/imports/importstest"
@@ -275,6 +276,230 @@ func TestSuggestionsOfAStoppedDatabaseConflict(t *testing.T) {
 
 	response := fixture.call(http.MethodPost, "/api/v1/deployments/test/import-suggestions",
 		`{"source": {"kind": "upload", "upload_id": "any"}}`)
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+}
+
+const importsURL = "/api/v1/deployments/default/imports"
+
+func (f *importsFixture) startImport(body string) *httptest.ResponseRecorder {
+	f.t.Helper()
+
+	return f.call(http.MethodPost, importsURL, body)
+}
+
+func importBody(uploadID, table, columns string) string {
+	body := `{"source": {"kind": "upload", "upload_id": "` + uploadID + `"}, ` +
+		`"schema": "DATA", "table": "` + table + `"`
+	if columns != "" {
+		body += `, "columns": ` + columns
+	}
+
+	return body + "}"
+}
+
+// finished polls the import at location until it no longer runs.
+func (f *importsFixture) finished(location string) importView {
+	f.t.Helper()
+
+	var view importView
+
+	require.Eventually(f.t, func() bool {
+		view = decode[importView](f.t, f.call(http.MethodGet, location, ""))
+
+		return view.Status != "running"
+	}, 5*time.Second, 10*time.Millisecond)
+
+	return view
+}
+
+func (f *importsFixture) importStatement(uploadID string, index int, table string) string {
+	return `IMPORT INTO "DATA"."` + table + `" FROM LOCAL PARQUET FILE '` +
+		f.uploads.Path(uploadID, index) + `'`
+}
+
+const tripsColumns = `"VendorID" DECIMAL(10,0), "passenger_count" DECIMAL(20,0), ` +
+	`"trip_distance" DOUBLE PRECISION, "store_and_fwd_flag" VARCHAR(2000000) UTF8`
+
+func TestImportingTwoUploadedFiles(t *testing.T) {
+	t.Parallel()
+
+	fixture := newImportsFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	uploadID := fixture.uploadTrips(
+		"yellow_tripdata_2024-01.parquet", "yellow_tripdata_2024-02.parquet")
+
+	const table = "YELLOW_TRIPDATA_2024"
+
+	createTable := `CREATE TABLE "DATA"."` + table + `" (` + tripsColumns + `)`
+	fixture.database.Respond(`CREATE SCHEMA IF NOT EXISTS "DATA"`, sqltest.Response{})
+	fixture.database.Respond(createTable, sqltest.Response{})
+	fixture.database.Respond(fixture.importStatement(uploadID, 0, table),
+		sqltest.Response{RowCount: 2_964_624})
+	fixture.database.Respond(fixture.importStatement(uploadID, 1, table),
+		sqltest.Response{RowCount: 3_007_526})
+
+	response := fixture.startImport(importBody(uploadID, table, ""))
+
+	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
+
+	started := decode[importView](t, response)
+	location := response.Header().Get("Location")
+	assert.Equal(t, importsURL+"/"+started.ID, location)
+
+	done := fixture.finished(location)
+
+	assert.Equal(t, "succeeded", done.Status, done.Message)
+	require.NotNil(t, done.Rows)
+	assert.Equal(t, int64(5_972_150), *done.Rows)
+	assert.Equal(t, []importFileView{
+		{Name: "yellow_tripdata_2024-01.parquet", Status: "succeeded", Rows: new(int64(2_964_624))},
+		{Name: "yellow_tripdata_2024-02.parquet", Status: "succeeded", Rows: new(int64(3_007_526))},
+	}, done.Files)
+	assert.Equal(t, `CREATE SCHEMA IF NOT EXISTS "DATA";`+"\n"+createTable+";\n"+
+		fixture.importStatement(uploadID, 0, table)+";\n"+
+		fixture.importStatement(uploadID, 1, table)+";\nCOMMIT;", done.SQL)
+	assert.Equal(t, 1, fixture.database.Transactions())
+	assert.Contains(t, fixture.database.Executed(), "COMMIT")
+	assert.Equal(t, http.StatusNotFound, fixture.suggest(uploadID).Code)
+}
+
+func TestImportingWithChangedNamesAndTypes(t *testing.T) {
+	t.Parallel()
+
+	fixture := newImportsFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	uploadID := fixture.uploadTrips("trips.parquet")
+	createTable := `CREATE TABLE "DATA"."TRIPS" ("VendorID" DECIMAL(10,0), ` +
+		`"PASSENGERS" DECIMAL(3,0), "trip_distance" DOUBLE PRECISION, ` +
+		`"store_and_fwd_flag" VARCHAR(2000000) UTF8)`
+	fixture.database.Respond(`CREATE SCHEMA IF NOT EXISTS "DATA"`, sqltest.Response{})
+	fixture.database.Respond(createTable, sqltest.Response{})
+	fixture.database.Respond(fixture.importStatement(uploadID, 0, "TRIPS"),
+		sqltest.Response{RowCount: 2})
+
+	response := fixture.startImport(importBody(uploadID, "TRIPS", `[
+	  {"name": "VendorID", "type": "DECIMAL(10,0)"},
+	  {"name": "PASSENGERS", "type": "DECIMAL(3,0)"},
+	  {"name": "trip_distance", "type": "DOUBLE PRECISION"},
+	  {"name": "store_and_fwd_flag", "type": "VARCHAR(2000000) UTF8"}
+	]`))
+
+	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
+	assert.Equal(t, "succeeded", fixture.finished(response.Header().Get("Location")).Status)
+	assert.Contains(t, fixture.database.Executed(), createTable)
+}
+
+func TestAFailingImportRollsBack(t *testing.T) {
+	t.Parallel()
+
+	fixture := newImportsFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	uploadID := fixture.uploadTrips("trips.parquet")
+	fixture.database.Respond(`CREATE SCHEMA IF NOT EXISTS "DATA"`, sqltest.Response{})
+	fixture.database.Respond(`CREATE TABLE "DATA"."TRIPS" (`+tripsColumns+`)`, sqltest.Response{})
+	fixture.database.Respond(fixture.importStatement(uploadID, 0, "TRIPS"), sqltest.Response{
+		Err: &sql.StatementError{Code: "42636", Message: "ETL-2220: [Column=passenger_count] " +
+			"[Value out of range.] [File: https://10.89.0.2:39111/data.parquet]"},
+	})
+
+	response := fixture.startImport(importBody(uploadID, "TRIPS", ""))
+	done := fixture.finished(response.Header().Get("Location"))
+
+	assert.Equal(t, "failed", done.Status)
+	assert.Equal(t, "ETL-2220: [Column=passenger_count] [Value out of range.] "+
+		"[File: trips.parquet]", done.Message)
+	assert.Equal(t, "failed", done.Files[0].Status)
+	assert.Nil(t, done.Rows)
+
+	executed := fixture.database.Executed()
+	assert.Equal(t, "ROLLBACK", executed[len(executed)-1])
+	assert.NotContains(t, executed, "COMMIT")
+	assert.Equal(t, http.StatusOK, fixture.suggest(uploadID).Code)
+}
+
+func TestCancellingAnImport(t *testing.T) {
+	t.Parallel()
+
+	fixture := newImportsFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	uploadID := fixture.uploadTrips("trips.parquet")
+	fixture.database.Respond(`CREATE SCHEMA IF NOT EXISTS "DATA"`, sqltest.Response{})
+	fixture.database.Respond(`CREATE TABLE "DATA"."TRIPS" (`+tripsColumns+`)`, sqltest.Response{})
+	fixture.database.Respond(fixture.importStatement(uploadID, 0, "TRIPS"),
+		sqltest.Response{Block: make(chan struct{})})
+
+	response := fixture.startImport(importBody(uploadID, "TRIPS", ""))
+	location := response.Header().Get("Location")
+	<-fixture.database.Running()
+
+	running := decode[importView](t, fixture.call(http.MethodGet, location, ""))
+	cancelled := fixture.call(http.MethodDelete, location, "")
+	done := fixture.finished(location)
+
+	assert.Equal(t, "running", running.Status)
+	assert.Equal(t, "running", running.Files[0].Status)
+	assert.Equal(t, http.StatusNoContent, cancelled.Code)
+	assert.Equal(t, "cancelled", done.Status)
+	assert.Equal(t, "cancelled", done.Files[0].Status)
+
+	executed := fixture.database.Executed()
+	assert.Contains(t, executed, "KILL STATEMENT IN SESSION 2")
+	assert.Equal(t, "ROLLBACK", executed[len(executed)-1])
+	assert.NotContains(t, executed, "COMMIT")
+}
+
+func TestImportsAreListedNewestFirst(t *testing.T) {
+	t.Parallel()
+
+	fixture := newImportsFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	first := fixture.uploadTrips("first.parquet")
+	second := fixture.uploadTrips("second.parquet")
+
+	firstImport := fixture.startImport(importBody(first, "FIRST", ""))
+	fixture.finished(firstImport.Header().Get("Location"))
+
+	secondImport := fixture.startImport(importBody(second, "SECOND", ""))
+	fixture.finished(secondImport.Header().Get("Location"))
+
+	listed := decode[[]importView](t, fixture.call(http.MethodGet, importsURL, ""))
+
+	require.Len(t, listed, 2)
+	assert.Equal(t, "SECOND", listed[0].Table)
+	assert.Equal(t, "FIRST", listed[1].Table)
+	assert.Equal(t, "failed", listed[0].Status)
+}
+
+func TestImportsWithProblemsConflict(t *testing.T) {
+	t.Parallel()
+
+	fixture := newImportsFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	fixture.takeTables("TRIPS")
+	trips := fixture.uploadTrips("trips.parquet")
+	path := importstest.Write(t, fixture.files, "events.parquet", []importstest.Event{{ID: 1}})
+	events := fixture.upload([]string{"events.parquet"}, []string{path})
+
+	taken := fixture.startImport(importBody(trips, "TRIPS", ""))
+	nested := fixture.startImport(importBody(events, "EVENTS", ""))
+	tooFewColumns := fixture.startImport(importBody(trips, "OTHER",
+		`[{"name": "VendorID", "type": "DECIMAL(10,0)"}]`))
+	unknown := fixture.call(http.MethodGet, importsURL+"/unknown", "")
+
+	assert.Equal(t, http.StatusConflict, taken.Code)
+	assert.Equal(t, "table_taken", decode[codedProblem](t, taken).Code)
+	assert.Equal(t, "TRIPS_2", decode[codedProblem](t, taken).Alternative)
+	assert.Equal(t, http.StatusConflict, nested.Code)
+	assert.Equal(t, "unsupported_columns", decode[codedProblem](t, nested).Code)
+	assert.Equal(t, http.StatusBadRequest, tooFewColumns.Code)
+	assert.Equal(t, http.StatusNotFound, unknown.Code)
+	assert.Equal(t, 0, fixture.database.Transactions())
+}
+
+func TestImportsIntoAStoppedDatabaseConflict(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Respond(twoDeployments, listArgs...)
+	fixture := newImportsFixture(t, fake)
+
+	response := fixture.call(http.MethodPost, "/api/v1/deployments/test/imports",
+		importBody("any", "TRIPS", ""))
 
 	assert.Equal(t, http.StatusConflict, response.Code)
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -72,6 +73,32 @@ func (o *DriverOpener) Close() error {
 	return errors.Join(errs...)
 }
 
+// OpenTransaction connects a connection of its own to target, with
+// autocommit off, that runs IMPORT … FROM LOCAL statements by sending the
+// files they name from this computer.
+func (*DriverOpener) OpenTransaction(
+	ctx context.Context,
+	_ string,
+	target database.Target,
+) (Conn, error) {
+	connections, err := database.OpenTransactional(target)
+	if err != nil {
+		return nil, err
+	}
+
+	connections.SetMaxOpenConns(1)
+
+	conn, err := connections.Conn(ctx)
+	if err != nil {
+		_ = connections.Close()
+
+		return nil, fmt.Errorf("cannot connect to the database as %s: %w",
+			target, database.Redact(err, target.Password))
+	}
+
+	return &driverConn{conn: conn, password: target.Password, pool: connections}, nil
+}
+
 func (o *DriverOpener) pool(deployment string, target database.Target) (*dbsql.DB, error) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
@@ -96,6 +123,8 @@ func (o *DriverOpener) pool(deployment string, target database.Target) (*dbsql.D
 	return connections, nil
 }
 
+var localImport = regexp.MustCompile(`(?is)^\s*IMPORT\b.*\bFROM\s+LOCAL\b`)
+
 // driverConn runs statements through the driver's exported connection rather
 // than database/sql, which reports no row count for statements run as a
 // query and no rows for statements run as an exec. It decodes values itself
@@ -103,6 +132,9 @@ func (o *DriverOpener) pool(deployment string, target database.Target) (*dbsql.D
 type driverConn struct {
 	conn     *dbsql.Conn
 	password string
+	// pool is set for a transaction's connection, which owns its pool and
+	// runs local imports.
+	pool *dbsql.DB
 }
 
 type executeResponse struct {
@@ -129,6 +161,10 @@ func (c *driverConn) Execute(
 	statement string,
 	read func(Rows) error,
 ) (int64, error) {
+	if c.pool != nil && localImport.MatchString(statement) {
+		return c.importLocal(ctx, statement)
+	}
+
 	var rowCount int64
 
 	err := c.conn.Raw(func(raw any) error {
@@ -163,7 +199,23 @@ func (c *driverConn) Execute(
 }
 
 func (c *driverConn) Close() error {
-	return c.conn.Close()
+	err := c.conn.Close()
+	if c.pool != nil {
+		err = errors.Join(err, c.pool.Close())
+	}
+
+	return err
+}
+
+// importLocal runs statement through the driver's own execution, which
+// serves the local files it names.
+func (c *driverConn) importLocal(ctx context.Context, statement string) (int64, error) {
+	result, err := c.conn.ExecContext(ctx, statement)
+	if err != nil {
+		return 0, statementError(err, c.password)
+	}
+
+	return result.RowsAffected()
 }
 
 type driverRows struct {

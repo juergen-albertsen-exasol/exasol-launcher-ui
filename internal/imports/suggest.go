@@ -80,16 +80,6 @@ type Suggestion struct {
 	Problems   []Problem
 }
 
-// Manager suggests and runs the imports of all deployments.
-type Manager struct {
-	opener  sql.Opener
-	uploads *Uploads
-}
-
-func NewManager(opener sql.Opener, uploads *Uploads) *Manager {
-	return &Manager{opener: opener, uploads: uploads}
-}
-
 // sourceFiles is a source's files, opened.
 type sourceFiles struct {
 	summary SourceSummary

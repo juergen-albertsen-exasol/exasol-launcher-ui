@@ -124,6 +124,9 @@ func serve(ctx context.Context, opts options, env environment) error {
 	uploads := imports.NewUploads(imports.DefaultUploadsDir())
 	defer uploads.Close()
 
+	importer := imports.NewManager(driver, uploads)
+	defer importer.Close(context.WithoutCancel(ctx))
+
 	token := server.NewToken()
 	accessPath := "/"
 	if opts.deployment != "" {
@@ -143,7 +146,7 @@ func serve(ctx context.Context, opts options, env environment) error {
 				ctx, launcherClient, launcherClient.InvalidateListing),
 			SQL:     sessions,
 			Uploads: uploads,
-			Imports: imports.NewManager(driver, uploads),
+			Imports: importer,
 			WebApp:  webApp,
 		}))
 

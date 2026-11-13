@@ -83,6 +83,16 @@ func Ping(ctx context.Context, target Target) (time.Duration, error) {
 // Open returns a connection pool for target. Errors never contain the
 // password.
 func Open(target Target) (*sql.DB, error) {
+	return openPool(target, true)
+}
+
+// OpenTransactional returns a connection pool for target whose connections
+// commit only on COMMIT. Errors never contain the password.
+func OpenTransactional(target Target) (*sql.DB, error) {
+	return openPool(target, false)
+}
+
+func openPool(target Target, autocommit bool) (*sql.DB, error) {
 	silenceDriverLogger()
 
 	dsn := exasol.NewConfig(target.Username, target.Password).
@@ -90,6 +100,7 @@ func Open(target Target) (*sql.DB, error) {
 		Port(target.Port).
 		ValidateServerCertificate(!target.InsecureSkipCertValidation).
 		ClientName(clientName).
+		Autocommit(autocommit).
 		String()
 
 	connector, err := exasol.ExasolDriver{}.OpenConnector(dsn)
