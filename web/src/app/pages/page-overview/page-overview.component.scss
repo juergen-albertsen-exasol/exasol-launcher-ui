@@ -152,6 +152,78 @@
     overflow-wrap: anywhere;
   }
 
+  &__outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 16px;
+    border: 1px solid var(--primary-accent);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--primary-accent);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid #2e6fee;
+      outline-offset: 3px;
+    }
+  }
+
+  &__button-icon {
+    margin-right: 8px;
+  }
+
+  &__failure {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1px solid $red;
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    overflow-wrap: anywhere;
+
+    i {
+      color: $red;
+    }
+  }
+
+  &__operation {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  &__spinner {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border: 3px solid var(--frame-color);
+    border-top-color: var(--primary-accent);
+    border-radius: 50%;
+    animation: overview-spin 1s linear infinite;
+  }
+
+  // The same dark ground in both themes, as the design system's operation log.
+  &__log {
+    min-height: 3.2em;
+    max-height: 220px;
+    margin: 0;
+    overflow: auto;
+    padding: 12px 14px;
+    border-radius: 4px;
+    background-color: #1d1d1d;
+    color: #c7ccd7;
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+    font-size: 0.81rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
   &__message {
     color: var(--text-secondary);
 
@@ -159,5 +231,11 @@
       color: var(--text-primary);
       overflow-wrap: anywhere;
     }
+  }
+}
+
+@keyframes overview-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

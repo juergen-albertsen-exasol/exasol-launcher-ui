@@ -5,24 +5,61 @@
   <section class="overview__deployment" aria-label="Deployment">
     <span class="overview__icon"><i class="fa-solid fa-database" aria-hidden="true"></i></span>
     <div class="overview__identity">
-      <span class="overview__state">{{ details()?.state ?? '…' }}</span>
+      <span class="overview__state">
+        @if (running(); as operation) {
+        {{ runningState[operation.kind] }}
+        } @else {
+        {{ details()?.state ?? '…' }}
+        }
+      </span>
       <h2 class="overview__name">{{ name() }}</h2>
       @if (summary(); as deployment) {
       <exa-folder-link class="overview__path" [deployment]="deployment.name" [path]="deployment.path"></exa-folder-link>
       }
     </div>
     <div class="overview__aside">
-      @if (summary(); as deployment) {
+      @if (running(); as operation) {
+      <span class="overview__status">operation_in_progress</span>
+      <exa-button [squared]="true" [shorter]="true" [loading]="true" [disabled]="true">
+        {{ operationTitle[operation.kind] }}
+      </exa-button>
+      } @else { @if (summary(); as deployment) {
       <span class="overview__status" [class.overview__status--ready]="deployment.status === readyStatus">
         {{ deployment.status }}
       </span>
+      } @if (canStart()) {
+      <exa-button class="overview__start" [squared]="true" [shorter]="true" (clickButton)="run(operationKind.START)">
+        <i class="fa-solid fa-play overview__button-icon" aria-hidden="true"></i>Start
+      </exa-button>
+      } @else { @if (canStop()) {
+      <button class="overview__outline overview__stop" type="button" (click)="run(operationKind.STOP)">
+        <i class="fa-solid fa-stop" aria-hidden="true"></i>Stop
+      </button>
       }
       <exa-button [squared]="true" [shorter]="true" [loading]="pingInProgress()" (clickButton)="checkAgain()">
         Check again
       </exa-button>
+      } }
     </div>
   </section>
 
+  @if (failed(); as operation) {
+  <p class="overview__failure" role="alert">
+    <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+    <span>{{ operationTitle[operation.kind] }} {{ operation.deployment }} failed: {{ operation.error }}</span>
+  </p>
+  } @if (running(); as operation) {
+  <section class="overview__details" aria-label="Operation">
+    <div class="overview__box" [attr.data-label]="operationTitle[operation.kind]">
+      <p class="overview__operation">
+        <span class="overview__spinner" aria-hidden="true"></span>
+        @if (operation.kind === operationKind.START) { Starting {{ name() }}. The launcher waits up to 30 minutes until
+        the database accepts connections. } @else { Stopping {{ name() }}. }
+      </p>
+      <pre class="overview__log" #log aria-label="Launcher output">{{ lines().join('\n') }}</pre>
+    </div>
+  </section>
+  } @else {
   <section class="overview__details" aria-label="Details">
     <div class="overview__box" data-label="Database">
       @if (ping(); as result) { @if (result.status === pingStatus.REACHABLE) {
@@ -74,5 +111,5 @@
     </div>
     }
   </section>
-  }
+  } }
 </div>
