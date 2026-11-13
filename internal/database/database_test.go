@@ -93,7 +93,7 @@ func TestPingFailureNamesTheTargetAndWithholdsThePassword(t *testing.T) {
 }
 
 // TestPingReachesARunningLocalDeployment needs the launcher on PATH and a
-// deployment whose database is ready, and skips otherwise.
+// local deployment whose database is ready, and skips otherwise.
 func TestPingReachesARunningLocalDeployment(t *testing.T) {
 	t.Parallel()
 
@@ -113,7 +113,7 @@ func TestPingReachesARunningLocalDeployment(t *testing.T) {
 	}
 
 	for _, deployment := range deployments {
-		if deployment.Status != "database_ready" {
+		if deployment.Status != "database_ready" || deployment.Infrastructure != "local" {
 			continue
 		}
 
@@ -137,5 +137,5 @@ func TestPingReachesARunningLocalDeployment(t *testing.T) {
 		return
 	}
 
-	t.Skip("no deployment with a ready database")
+	t.Skip("no local deployment with a ready database")
 }
