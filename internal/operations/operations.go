@@ -24,12 +24,18 @@ const (
 	KindDestroy          Kind = "destroy"
 	KindDestroyAndRemove Kind = "destroy_and_remove"
 	KindRemove           Kind = "remove"
+	KindEnableSidecar    Kind = "enable_sidecar"
+	KindDisableSidecar   Kind = "disable_sidecar"
+	KindRemoveSidecar    Kind = "remove_sidecar"
 )
 
-// command returns the launcher arguments that run kind, without the
-// deployment directory, and whether the command prints a lifecycle result.
-func (k Kind) command() ([]string, bool) {
-	const approve = "--auto-approve"
+// command returns the launcher arguments that run kind on sidecar, without
+// the deployment directory, and whether the command prints a lifecycle result.
+func (k Kind) command(sidecar string) ([]string, bool) {
+	const (
+		approve        = "--auto-approve"
+		sidecarCommand = "sidecar"
+	)
 
 	switch k {
 	case KindStart, KindStop:
@@ -42,6 +48,12 @@ func (k Kind) command() ([]string, bool) {
 		return []string{"destroy", "--remove", approve}, false
 	case KindRemove:
 		return []string{"remove", approve}, false
+	case KindEnableSidecar:
+		return []string{sidecarCommand, "enable", sidecar}, false
+	case KindDisableSidecar:
+		return []string{sidecarCommand, "disable", sidecar}, false
+	case KindRemoveSidecar:
+		return []string{sidecarCommand, "disable", sidecar, "--remove"}, false
 	default:
 		return []string{string(k)}, false
 	}
@@ -70,6 +82,7 @@ type Snapshot struct {
 	ID         string
 	Deployment string
 	Kind       Kind
+	Sidecar    string
 	Status     Status
 	StartedAt  time.Time
 	FinishedAt *time.Time
@@ -126,6 +139,17 @@ func (m *Manager) Start(
 	kind Kind,
 	secret string,
 ) (Snapshot, error) {
+	return m.StartOnSidecar(deployment, kind, "", secret)
+}
+
+// StartOnSidecar runs kind on the named sidecar of the deployment in the
+// background, like Start.
+func (m *Manager) StartOnSidecar(
+	deployment launcher.Deployment,
+	kind Kind,
+	sidecar string,
+	secret string,
+) (Snapshot, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -138,6 +162,7 @@ func (m *Manager) Start(
 			ID:         rand.Text(),
 			Deployment: deployment.Name,
 			Kind:       kind,
+			Sidecar:    sidecar,
 			Status:     StatusRunning,
 			StartedAt:  m.now(),
 		},
@@ -147,7 +172,7 @@ func (m *Manager) Start(
 	m.order = append(m.order, current.snapshot.ID)
 	m.running[deployment.Name] = current.snapshot.ID
 
-	args, reportsResult := kind.command()
+	args, reportsResult := kind.command(sidecar)
 	go m.run(current, reportsResult, append(args, "--deployment-dir", deployment.Path)...)
 
 	return current.snapshot, nil

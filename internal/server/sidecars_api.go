@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/exasol/exasol-local-ui/internal/launcher"
+	"github.com/exasol/exasol-local-ui/internal/operations"
 )
 
 type sidecarView struct {
@@ -48,6 +49,8 @@ func (a *api) registerSidecars(mux *http.ServeMux) {
 	const deployment = "/api/v1/deployments/{name}"
 
 	mux.HandleFunc("GET "+deployment+"/sidecars", a.listSidecars)
+	mux.HandleFunc("POST "+deployment+"/sidecars/{sidecar}/enable", a.enableSidecar)
+	mux.HandleFunc("POST "+deployment+"/sidecars/{sidecar}/disable", a.disableSidecar)
 	mux.HandleFunc("GET "+deployment+"/mcp/clients", a.listMCPClients)
 	mux.HandleFunc("GET "+deployment+"/mcp/clients/{client}", a.getMCPInstructions)
 }
@@ -141,6 +144,70 @@ func (a *api) listSidecars(response http.ResponseWriter, request *http.Request) 
 	}
 
 	writeJSON(response, http.StatusOK, sidecars)
+}
+
+// findSidecar finds the deployment and its listed sidecar named in the path.
+// Only listed names reach the launcher, which keeps flags out of its command.
+func (a *api) findSidecar(
+	response http.ResponseWriter,
+	request *http.Request,
+) (launcher.Deployment, string, bool) {
+	deployment, ok := a.findDeployment(response, request)
+	if !ok {
+		return launcher.Deployment{}, "", false
+	}
+
+	sidecars, err := a.sidecars(request.Context(), deployment)
+	if err != nil {
+		answerRefusal(response, err)
+
+		return launcher.Deployment{}, "", false
+	}
+
+	name := request.PathValue("sidecar")
+	for _, sidecar := range sidecars {
+		if sidecar.Name == name {
+			return deployment, name, true
+		}
+	}
+
+	writeProblem(response, http.StatusNotFound,
+		"Deployment "+deployment.Name+" has no sidecar "+name+".")
+
+	return launcher.Deployment{}, "", false
+}
+
+type disableRequest struct {
+	RemoveDefinition bool `json:"remove_definition"`
+}
+
+func (a *api) enableSidecar(response http.ResponseWriter, request *http.Request) {
+	deployment, sidecar, ok := a.findSidecar(response, request)
+	if !ok {
+		return
+	}
+
+	a.runOperationOn(response, deployment, operations.KindEnableSidecar, sidecar)
+}
+
+func (a *api) disableSidecar(response http.ResponseWriter, request *http.Request) {
+	var options disableRequest
+
+	if request.ContentLength != 0 && !decodeBody(response, request, &options) {
+		return
+	}
+
+	deployment, sidecar, ok := a.findSidecar(response, request)
+	if !ok {
+		return
+	}
+
+	kind := operations.KindDisableSidecar
+	if options.RemoveDefinition {
+		kind = operations.KindRemoveSidecar
+	}
+
+	a.runOperationOn(response, deployment, kind, sidecar)
 }
 
 func (a *api) mcpClients(

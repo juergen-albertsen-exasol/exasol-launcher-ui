@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/operations"
 )
 
@@ -20,6 +21,7 @@ type operationView struct {
 	ID         string           `json:"id"`
 	Deployment string           `json:"deployment"`
 	Kind       operations.Kind  `json:"kind"`
+	Sidecar    string           `json:"sidecar,omitempty"`
 	Status     string           `json:"status"`
 	StartedAt  time.Time        `json:"started_at"`
 	FinishedAt *time.Time       `json:"finished_at,omitempty"`
@@ -33,6 +35,7 @@ func viewOf(snapshot operations.Snapshot, lines []string) operationView {
 		ID:         snapshot.ID,
 		Deployment: snapshot.Deployment,
 		Kind:       snapshot.Kind,
+		Sidecar:    snapshot.Sidecar,
 		Status:     string(snapshot.Status),
 		StartedAt:  snapshot.StartedAt,
 		FinishedAt: snapshot.FinishedAt,
@@ -98,10 +101,21 @@ func (a *api) runOperation(
 		return
 	}
 
+	a.runOperationOn(response, deployment, kind, "")
+}
+
+// runOperationOn runs kind on the deployment, on its named sidecar when
+// sidecar is set.
+func (a *api) runOperationOn(
+	response http.ResponseWriter,
+	deployment launcher.Deployment,
+	kind operations.Kind,
+	sidecar string,
+) {
 	// The password is only used to withhold it from the progress output.
 	secret, _ := database.ReadPassword(deployment.Path)
 
-	snapshot, err := a.operations.Start(deployment, kind, secret)
+	snapshot, err := a.operations.StartOnSidecar(deployment, kind, sidecar, secret)
 	if errors.Is(err, operations.ErrBusy) {
 		writeProblem(response, http.StatusConflict,
 			"An operation already runs on deployment "+deployment.Name+".")

@@ -2,9 +2,12 @@ package server
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/exasol/exasol-local-ui/internal/launcher/launchertest"
+	"github.com/exasol/exasol-local-ui/internal/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -210,4 +213,133 @@ func TestMCPInstructionsOfAnUnlistedClientAreNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, response.Code)
 	assert.NotContains(t, fake.Calls(),
 		"mcp instructions --help --json --deployment-dir "+defaultDir)
+}
+
+func newSidecarOperationsFixture(t *testing.T) operationsFixture {
+	t.Helper()
+
+	fixture := newOperationsFixture(t)
+	fixture.fake.Respond(savedSidecars, sidecarArgs("status", defaultDir)...)
+	fixture.fake.Respond(catalogSidecars, sidecarArgs("list", defaultDir)...)
+
+	return fixture
+}
+
+func (f operationsFixture) listedSidecars(t *testing.T) []string {
+	t.Helper()
+
+	response := f.call(t, http.MethodGet, "/api/v1/deployments/default/sidecars")
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+
+	names := []string{}
+
+	for _, sidecar := range decode[[]sidecarView](t, response) {
+		if sidecar.Enabled {
+			names = append(names, sidecar.Name)
+		}
+	}
+
+	return names
+}
+
+func TestEnablingACatalogSidecar(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSidecarOperationsFixture(t)
+	enableArgs := []string{"sidecar", "enable", "dash-server", "--deployment-dir", defaultDir}
+	fixture.fake.RespondWithProgress("Pulling the image\n", "", enableArgs...)
+	fixture.fake.RespondAfter(enableArgs, `[
+	  {"name": "mcp", "enabled": true, "running": true, "state": "running", "endpoints": []},
+	  {"name": "kafka", "enabled": true, "running": true, "state": "running", "endpoints": []},
+	  {"name": "dash-server", "enabled": true, "running": true, "state": "running",
+	   "endpoints": []}
+	]`, sidecarArgs("status", defaultDir)...)
+
+	response := fixture.call(t, http.MethodPost,
+		"/api/v1/deployments/default/sidecars/dash-server/enable")
+
+	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
+
+	started := decode[operationView](t, response)
+	assert.Equal(t, operations.KindEnableSidecar, started.Kind)
+	assert.Equal(t, "dash-server", started.Sidecar)
+	assert.Equal(t, "default", started.Deployment)
+	assert.Equal(t, "/api/v1/operations/"+started.ID, response.Header().Get("Location"))
+
+	fixture.waitFor(t, started.ID, "succeeded")
+	assert.Equal(t, []string{"mcp", "kafka", "dash-server"}, fixture.listedSidecars(t))
+}
+
+func TestDisablingASidecarAndDeletingItsDefinition(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSidecarOperationsFixture(t)
+	removeArgs := []string{
+		"sidecar", "disable", "kafka", "--remove", "--deployment-dir", defaultDir,
+	}
+	fixture.fake.RespondWithProgress("", "", removeArgs...)
+	fixture.fake.RespondAfter(removeArgs, `[
+	  {"name": "mcp", "enabled": true, "running": true, "state": "running", "endpoints": []}
+	]`, sidecarArgs("status", defaultDir)...)
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		"/api/v1/deployments/default/sidecars/kafka/disable",
+		strings.NewReader(`{"remove_definition": true}`))
+	response := httptest.NewRecorder()
+	fixture.handler.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
+
+	started := decode[operationView](t, response)
+	assert.Equal(t, operations.KindRemoveSidecar, started.Kind)
+	assert.Equal(t, "kafka", started.Sidecar)
+
+	fixture.waitFor(t, started.ID, "succeeded")
+	assert.Equal(t, []string{"mcp"}, fixture.listedSidecars(t))
+}
+
+func TestDisablingASidecarKeepsItsDefinition(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSidecarOperationsFixture(t)
+	fixture.fake.RespondWithProgress("", "",
+		"sidecar", "disable", "kafka", "--deployment-dir", defaultDir)
+
+	started := fixture.post(t, "/api/v1/deployments/default/sidecars/kafka/disable")
+
+	assert.Equal(t, operations.KindDisableSidecar, started.Kind)
+	fixture.waitFor(t, started.ID, "succeeded")
+}
+
+func TestAnUnlistedSidecarIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSidecarOperationsFixture(t)
+
+	response := fixture.call(t, http.MethodPost,
+		"/api/v1/deployments/default/sidecars/--all/enable")
+
+	assert.Equal(t, http.StatusNotFound, response.Code)
+
+	for _, call := range fixture.fake.Calls() {
+		assert.NotContains(t, call, "--all")
+	}
+}
+
+func TestASidecarOperationWaitsForARunningOperation(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSidecarOperationsFixture(t)
+	startArgs := lifecycleArgs("start", defaultDir)
+	fixture.fake.RespondWithProgress("", runningResult, startArgs...)
+	fixture.fake.Hold(startArgs...)
+
+	defer fixture.fake.Release(startArgs...)
+
+	first := fixture.call(t, http.MethodPost, "/api/v1/deployments/default/start")
+	require.Equal(t, http.StatusAccepted, first.Code)
+
+	second := fixture.call(t, http.MethodPost,
+		"/api/v1/deployments/default/sidecars/mcp/disable")
+	assert.Equal(t, http.StatusConflict, second.Code)
 }

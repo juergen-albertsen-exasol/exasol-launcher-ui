@@ -269,3 +269,34 @@ func TestKindsRunTheirLauncherCommands(t *testing.T) {
 		})
 	}
 }
+
+func TestSidecarKindsRunTheirLauncherCommands(t *testing.T) {
+	t.Parallel()
+
+	commands := map[operations.Kind][]string{
+		operations.KindEnableSidecar:  {"sidecar", "enable", "mcp"},
+		operations.KindDisableSidecar: {"sidecar", "disable", "mcp"},
+		operations.KindRemoveSidecar:  {"sidecar", "disable", "mcp", "--remove"},
+	}
+
+	for kind, command := range commands {
+		t.Run(string(kind), func(t *testing.T) {
+			t.Parallel()
+
+			fake := launchertest.NewFake(t)
+			args := append(slices.Clone(command), "--deployment-dir", defaultDeployment.Path)
+			fake.RespondWithProgress("Working\n", "{}", args...)
+
+			manager := newManager(t, fake, nil)
+
+			started, err := manager.StartOnSidecar(defaultDeployment, kind, "mcp", "")
+			require.NoError(t, err)
+			assert.Equal(t, "mcp", started.Sidecar)
+
+			snapshot, _ := waitUntilFinished(t, manager, started.ID)
+
+			assert.Equal(t, operations.StatusSucceeded, snapshot.Status, snapshot.Error)
+			assert.Equal(t, "mcp", snapshot.Sidecar)
+		})
+	}
+}
