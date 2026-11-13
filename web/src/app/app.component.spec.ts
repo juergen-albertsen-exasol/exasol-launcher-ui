@@ -55,6 +55,15 @@ describe('AppComponent', () => {
       expect(logo.nativeElement.textContent.trim()).toBe('');
     });
 
+    it('returns to the Deployments page from the Exasol logo', async () => {
+      root.query(By.css('.logo')).nativeElement.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(Router).url).toBe('/deployments');
+      expect(root.query(By.css('exa-page-deployments'))).toBeTruthy();
+    });
+
     it('shows the deployment selector in the header', () => {
       expect(root.query(By.css('header .controls exa-deployment-selector'))).toBeTruthy();
     });

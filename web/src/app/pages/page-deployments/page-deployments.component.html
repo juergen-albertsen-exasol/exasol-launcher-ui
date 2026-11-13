@@ -1,6 +1,6 @@
 <div class="deployments">
   <header class="deployments__brand">
-    <div class="deployments__logo" role="img" aria-label="Exasol"></div>
+    <a class="deployments__logo" routerLink="/" aria-label="Exasol, back to the deployments"></a>
   </header>
   <main class="deployments__content">
     <h1 class="deployments__title">Deployments</h1>
@@ -8,25 +8,25 @@
       @if (listError(); as error) {
       <p class="deployments__message deployments__message--error">Cannot list deployments: {{ error }}</p>
       } @else if (deployments(); as deployments) { @for (deployment of deployments; track deployment.name) {
-      <div class="deployments__tile">
+      <a class="deployments__tile" [routerLink]="overviewPath(deployment.name)">
         <span class="deployments__tile-top">
           <span class="deployments__status" [class.deployments__status--ready]="deployment.status === readyStatus">
             {{ deployment.status }}
           </span>
           <span class="deployments__preset">{{ deployment.infrastructure }}</span>
         </span>
-        <a class="deployments__name" [routerLink]="overviewPath(deployment.name)">{{ deployment.name }}</a>
-        <exa-folder-link
-          class="deployments__folder"
-          [deployment]="deployment.name"
-          [path]="deployment.path"
-        ></exa-folder-link>
-      </div>
+        <span class="deployments__name">{{ deployment.name }}</span>
+      </a>
       } @empty {
       <p class="deployments__message">
         The launcher lists no deployments. Create one with <code>exasol install</code>, then reload this page.
       </p>
-      } }
+      } } @else {
+      <div class="deployments__loading" role="status">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Looking up deployments…</span>
+      </div>
+      }
     </div>
   </main>
 </div>
