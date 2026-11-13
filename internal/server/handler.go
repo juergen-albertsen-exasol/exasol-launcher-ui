@@ -29,6 +29,9 @@ type Config struct {
 	// Uploads keeps uploaded files; it defaults to the user's temporary
 	// folder.
 	Uploads *imports.Uploads
+	// Imports suggests and runs imports; it defaults to a manager that
+	// connects through the driver.
+	Imports *imports.Manager
 	// WebApp holds the compiled browser application.
 	WebApp fs.FS
 }
@@ -51,6 +54,10 @@ func NewHandler(config Config) http.Handler {
 		config.Uploads = imports.NewUploads(imports.DefaultUploadsDir())
 	}
 
+	if config.Imports == nil {
+		config.Imports = imports.NewManager(sql.NewDriverOpener(), config.Uploads)
+	}
+
 	mux := http.NewServeMux()
 	(&api{
 		launcher:   config.Launcher,
@@ -59,6 +66,7 @@ func NewHandler(config Config) http.Handler {
 		operations: config.Operations,
 		sql:        config.SQL,
 		uploads:    config.Uploads,
+		imports:    config.Imports,
 	}).register(mux)
 	mux.Handle("/", newWebApp(config.WebApp))
 

@@ -117,7 +117,8 @@ func serve(ctx context.Context, opts options, env environment) error {
 		return fmt.Errorf("unexpected listener address %s", listener.Addr())
 	}
 
-	sessions := sql.NewManager(sql.NewDriverOpener())
+	driver := sql.NewDriverOpener()
+	sessions := sql.NewManager(driver)
 	defer sessions.Close(context.WithoutCancel(ctx))
 
 	uploads := imports.NewUploads(imports.DefaultUploadsDir())
@@ -142,6 +143,7 @@ func serve(ctx context.Context, opts options, env environment) error {
 				ctx, launcherClient, launcherClient.InvalidateListing),
 			SQL:     sessions,
 			Uploads: uploads,
+			Imports: imports.NewManager(driver, uploads),
 			WebApp:  webApp,
 		}))
 
