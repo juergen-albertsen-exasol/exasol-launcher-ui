@@ -15,6 +15,7 @@ import { OperationsState } from '@exa/store/operations/operations.state';
 import { ScriptLanguagesState } from '@exa/store/script-languages/script-languages.state';
 import { SettingsState } from '@exa/store/settings/settings.state';
 import { SidecarsState } from '@exa/store/sidecars/sidecars.state';
+import { SqlState } from '@exa/store/sql/sql.state';
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -36,6 +37,7 @@ bootstrapApplication(AppComponent, {
       SidecarsState,
       ScriptLanguagesState,
       DiagnosticsState,
+      SqlState,
     ]),
     { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
   ],

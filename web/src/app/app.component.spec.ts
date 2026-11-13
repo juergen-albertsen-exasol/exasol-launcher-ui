@@ -9,6 +9,7 @@ import { NAV_ITEMS, NotificationsState } from '@exasol/ui-common';
 import { DiagnosticsState } from '@exa/store/diagnostics/diagnostics.state';
 import { OperationsPollingService } from '@exa/store/operations/operations-polling.service';
 import { OperationsState } from '@exa/store/operations/operations.state';
+import { SqlState } from '@exa/store/sql/sql.state';
 import { AppComponent } from './app.component';
 import { APP_NAV_ITEMS, appRoutes, withAppRouterConfig } from './routes';
 import { SessionService } from './services/session/session.service';
@@ -44,6 +45,7 @@ describe('AppComponent', () => {
           SidecarsState,
           ScriptLanguagesState,
           DiagnosticsState,
+          SqlState,
         ]),
         provideLocalApi({ deployments: [summary('default'), summary('test')], operations: [operation()] }),
         { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
@@ -99,6 +101,7 @@ describe('AppComponent', () => {
 
       expect(links.map(link => link.nativeElement.textContent.trim())).toEqual([
         'Overview',
+        'SQL',
         'Sidecars',
         'MCP server',
         'Script languages',
@@ -107,6 +110,16 @@ describe('AppComponent', () => {
       ]);
       expect(active.map(link => link.nativeElement.getAttribute('href'))).toEqual(['/deployments/test/overview']);
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Overview');
+    });
+
+    it('opens the SQL page from the navigation drawer', async () => {
+      root.query(By.css('.nav-content-wrapper a[href="/deployments/test/sql"]')).nativeElement.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(Router).url).toBe('/deployments/test/sql');
+      expect(root.query(By.css('exa-page-sql'))).toBeTruthy();
+      expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('SQL');
     });
 
     it('opens the Sidecars page from the navigation drawer', async () => {

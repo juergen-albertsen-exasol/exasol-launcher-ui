@@ -15,6 +15,7 @@ export const LocalRoutes = {
 
 export const DeploymentPage = {
   OVERVIEW: 'overview',
+  SQL: 'sql',
   SIDECARS: 'sidecars',
   MCP: 'mcp',
   SCRIPT_LANGUAGES: 'script-languages',
@@ -40,6 +41,11 @@ export const APP_NAV_ITEMS: { [key: string]: NavItem } = {
     path: '',
     faIcon: ['fa-database'],
     text: 'Overview',
+  },
+  [DeploymentPage.SQL]: {
+    path: '',
+    faIcon: ['fa-terminal'],
+    text: 'SQL',
   },
   [DeploymentPage.SIDECARS]: {
     path: '',
@@ -98,6 +104,12 @@ export const appRoutes: Route[] = [
     runGuardsAndResolvers: 'always',
     children: [
       page(DeploymentPage.OVERVIEW, PageOverviewComponent),
+      {
+        // The editor and the result grid are large, so the SQL page loads on first use.
+        path: DeploymentPage.SQL,
+        loadComponent: () => import('./pages/page-sql/page-sql.component').then(module => module.PageSqlComponent),
+        data: { title: APP_NAV_ITEMS[DeploymentPage.SQL].text },
+      },
       page(DeploymentPage.SIDECARS, PageSidecarsComponent),
       page(DeploymentPage.MCP, PageMcpComponent),
       page(DeploymentPage.SCRIPT_LANGUAGES, PageScriptLanguagesComponent),

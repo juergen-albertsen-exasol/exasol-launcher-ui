@@ -218,3 +218,51 @@ export interface LocalRuntime {
 
 /** The launcher's full report on a deployment, as `exasol diag info` prints it. */
 export type DiagnosticReport = { [key: string]: unknown };
+
+export interface SqlSession {
+  id: string;
+}
+
+export interface SqlColumn {
+  name: string;
+  type: string;
+}
+
+export interface ResultSetOutcome {
+  type: 'result_set';
+  columns: SqlColumn[];
+  /** Values in the database's text representation, null for NULL. */
+  rows: (string | null)[][];
+  total_rows: number;
+  truncated: boolean;
+  duration_ms: number;
+  schema: string | null;
+}
+
+export interface RowCountOutcome {
+  type: 'row_count';
+  row_count: number;
+  duration_ms: number;
+  schema: string | null;
+}
+
+export type StatementOutcome = ResultSetOutcome | RowCountOutcome;
+
+export interface StatementProblem extends Problem {
+  /** The database's error code; empty when the statement failed outside the database. */
+  code?: string;
+  line?: number;
+  column?: number;
+}
+
+export interface SchemaObject {
+  name: string;
+  kind: 'table' | 'view';
+  columns?: SqlColumn[];
+}
+
+export interface SchemaSummary {
+  name: string;
+  virtual: boolean;
+  objects: SchemaObject[];
+}

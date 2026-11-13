@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import {
   Configuration,
   DeploymentDetails,
@@ -12,8 +12,12 @@ import {
   OperationKind,
   OperationParameters,
   PingResult,
+  SchemaSummary,
   ScriptLanguages,
   Sidecar,
+  SqlSession,
+  StatementOutcome,
+  StatementProblem,
 } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 
@@ -49,7 +53,33 @@ export interface LocalApiFixture {
   reports?: { [name: string]: DiagnosticReport };
   /** Messages with which the API refuses to unlock a deployment's folder. */
   unlockRefusals?: { [name: string]: string };
+  /** Outcomes of SQL statements by their text; other statements affect no rows. */
+  sqlOutcomes?: { [sql: string]: StatementOutcome };
+  /** Problems with which SQL statements fail, by their text. */
+  sqlFailures?: { [sql: string]: StatementProblem };
+  schemas?: { [name: string]: SchemaSummary[] };
+  /** Schemas with their columns, by deployment and schema name. */
+  schemaDetails?: { [name: string]: { [schema: string]: SchemaSummary } };
 }
+
+export const resultSet = (
+  columns: [string, string][],
+  rows: (string | null)[][],
+  overrides: Partial<StatementOutcome> = {}
+): StatementOutcome =>
+  ({
+    type: 'result_set',
+    columns: columns.map(([name, type]) => ({ name, type })),
+    rows,
+    total_rows: rows.length,
+    truncated: false,
+    duration_ms: 80,
+    schema: null,
+    ...overrides,
+  }) as StatementOutcome;
+
+export const statementFailure = (detail: string, code = '42000', line?: number, column?: number) =>
+  ({ type: 'about:blank', title: 'Unprocessable Entity', detail, code, line, column }) as StatementProblem;
 
 export const MCP_CLIENTS: McpClient[] = [
   { id: 'claude-code', name: 'Claude Code' },
@@ -242,6 +272,30 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
   listMcpClients: jest.fn(() => of(MCP_CLIENTS)),
   getMcpInstructions: jest.fn((name: string, client: string) => of(mcpInstructions(client))),
   pingDeployment: jest.fn((name: string) => of(fixture.pings?.[name] ?? { status: 'reachable', round_trip_ms: 5 })),
+  openSqlSession: jest.fn<Observable<SqlSession>, [string]>(() => of({ id: 'session-1' })),
+  closeSqlSession: jest.fn<void, [string, string]>(),
+  runStatement: jest.fn<Observable<StatementOutcome>, [string, string, string]>((...[, , sql]) => {
+    const failure = fixture.sqlFailures?.[sql];
+    if (failure) return throwError(() => new HttpErrorResponse({ status: 422, error: failure }));
+    const outcome: StatementOutcome = fixture.sqlOutcomes?.[sql] ?? {
+      type: 'row_count',
+      row_count: 0,
+      duration_ms: 10,
+      schema: null,
+    };
+    return of(outcome);
+  }),
+  cancelStatement: jest.fn<Observable<void>, [string, string]>(() => of(undefined)),
+  createExport: jest.fn<Observable<string>, [string, string, string]>(name =>
+    of(`/api/v1/deployments/${name}/sql/exports/e1`)
+  ),
+  listSchemas: jest.fn((name: string) => of(fixture.schemas?.[name] ?? [])),
+  getSchema: jest.fn((name: string, schema: string) => {
+    const details = fixture.schemaDetails?.[name]?.[schema];
+    return details
+      ? of(details)
+      : throwError(() => new HttpErrorResponse({ status: 404, error: { detail: 'the database has no such schema' } }));
+  }),
 });
 
 export const provideLocalApi = (fixture: LocalApiFixture) => ({

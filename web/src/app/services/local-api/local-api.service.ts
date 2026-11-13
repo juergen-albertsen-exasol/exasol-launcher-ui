@@ -1,6 +1,6 @@
-import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import {
   Configuration,
   DeploymentDetails,
@@ -15,8 +15,11 @@ import {
   OptionValue,
   PingResult,
   Problem,
+  SchemaSummary,
   ScriptLanguages,
   Sidecar,
+  SqlSession,
+  StatementOutcome,
 } from './local-api.models';
 
 export const API_BASE_PATH = '/api/v1';
@@ -127,6 +130,50 @@ export class LocalApiService {
 
   getOperation(id: string): Observable<Operation> {
     return this.http.get<Operation>(`${API_BASE_PATH}/operations/${encodeURIComponent(id)}`);
+  }
+
+  openSqlSession(name: string): Observable<SqlSession> {
+    return this.http.post<SqlSession>(this.sqlSessionsPath(name), null);
+  }
+
+  /** Closes a session with a request that outlives the page, so it also works while the page unloads. */
+  closeSqlSession(name: string, id: string): void {
+    fetch(this.sqlSessionPath(name, id), { method: 'DELETE', keepalive: true, credentials: 'same-origin' }).catch(
+      () => undefined
+    );
+  }
+
+  runStatement(name: string, id: string, sql: string): Observable<StatementOutcome> {
+    return this.http.post<StatementOutcome>(`${this.sqlSessionPath(name, id)}/statements`, { sql });
+  }
+
+  cancelStatement(name: string, id: string): Observable<void> {
+    return this.http.post<void>(`${this.sqlSessionPath(name, id)}/cancel`, null);
+  }
+
+  /** Returns the URL that downloads the statement's full result as CSV once. */
+  createExport(name: string, id: string, sql: string): Observable<string> {
+    return this.http
+      .post(`${this.sqlSessionPath(name, id)}/exports`, { sql }, { observe: 'response' })
+      .pipe(map((response: HttpResponse<unknown>) => response.headers.get('Location') ?? ''));
+  }
+
+  private sqlSessionsPath(name: string): string {
+    return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/sql/sessions`;
+  }
+
+  private sqlSessionPath(name: string, id: string): string {
+    return `${this.sqlSessionsPath(name)}/${encodeURIComponent(id)}`;
+  }
+
+  listSchemas(name: string): Observable<SchemaSummary[]> {
+    return this.http.get<SchemaSummary[]>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/schemas`);
+  }
+
+  getSchema(name: string, schema: string): Observable<SchemaSummary> {
+    return this.http.get<SchemaSummary>(
+      `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/schemas/${encodeURIComponent(schema)}`
+    );
   }
 
   pingDeployment(name: string): Observable<PingResult> {

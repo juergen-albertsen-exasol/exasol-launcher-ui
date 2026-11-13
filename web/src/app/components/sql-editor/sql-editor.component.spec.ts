@@ -64,6 +64,14 @@ describe('SqlEditorComponent', () => {
     expect(fixture.nativeElement.querySelector('.cm-sql-error')).toBeNull();
   });
 
+  it('underlines a qualified name as a whole', () => {
+    editor.replaceAll('SELECT r.REGOIN_NAME, 1 FROM R');
+
+    editor.markError(7);
+
+    expect(fixture.nativeElement.querySelector('.cm-sql-error').textContent).toBe('r.REGOIN_NAME');
+  });
+
   it('marks the lines of the running statement', () => {
     editor.markRunning({ from: 21, to: 52 });
     expect(fixture.nativeElement.querySelectorAll('.cm-sql-running')).toHaveLength(1);

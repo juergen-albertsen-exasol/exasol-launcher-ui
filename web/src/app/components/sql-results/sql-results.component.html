@@ -1,0 +1,109 @@
+<div class="sql-results">
+  @if (tabs().length === 0) {
+  <div class="sql-results__empty">
+    <i class="fa-solid fa-table" aria-hidden="true"></i>
+    @if (stopped()) {
+    <p>Your SQL stays here while the database is stopped. Results appear once it runs.</p>
+    } @else {
+    <p>
+      <kbd>{{ run }}</kbd> runs the statement at the cursor, or the selection. <kbd>{{ runAll }}</kbd> runs every
+      statement, each with its own result.
+    </p>
+    }
+  </div>
+  } @else {
+  <div class="sql-results__tabs" role="tablist" aria-label="Results">
+    @for (item of tabs(); track $index) {
+    <button
+      class="sql-results__tab"
+      [class.sql-results__tab--failed]="item.status === 'failed'"
+      type="button"
+      role="tab"
+      [attr.aria-selected]="$index === selected()"
+      (click)="selectTab.emit($index)"
+    >
+      @switch (item.status) { @case ('succeeded') {
+      <i class="fa-solid fa-check sql-results__ok" aria-hidden="true"></i>
+      } @case ('running') {
+      <i class="fa-solid fa-spinner fa-spin sql-results__ok" aria-hidden="true"></i>
+      } @case ('waiting') {
+      <i class="fa-solid fa-hourglass" aria-hidden="true"></i>
+      } @case ('failed') {
+      <i class="fa-solid fa-circle-xmark sql-results__bad" aria-hidden="true"></i>
+      } @case ('cancelled') {
+      <i class="fa-solid fa-ban" aria-hidden="true"></i>
+      } @default {
+      <i class="fa-solid fa-minus" aria-hidden="true"></i>
+      } }
+      <span class="sql-results__num">{{ $index + 1 }}</span
+      >{{ label(item, now()) }}
+    </button>
+    }
+  </div>
+
+  @if (tab(); as current) { @switch (current.status) { @case ('succeeded') { @if (resultSet(); as result) { @if
+  (result.truncated) {
+  <div class="sql-results__notice" role="note">
+    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+    The table shows the first {{ formatCount(result.rows.length) }} of {{ formatRows(result.total_rows) }}. Download CSV
+    saves every row.
+  </div>
+  }
+  <ag-grid-angular
+    class="ag-theme-alpine sql-results__grid"
+    [columnDefs]="columns()"
+    [rowData]="result.rows"
+    [defaultColDef]="{ resizable: true, minWidth: 80 }"
+    [suppressFieldDotNotation]="true"
+    [enableCellTextSelection]="true"
+    [rowHeight]="30"
+    [headerHeight]="46"
+    (firstDataRendered)="fitColumns($event)"
+    (rowDataUpdated)="fitColumns($event)"
+  ></ag-grid-angular>
+  } @else {
+  <div class="sql-results__message">{{ formatRows(affected()) }} affected.</div>
+  }
+  <div class="sql-results__status">
+    <span class="sql-results__summary">{{ summary(current) }}</span>
+    @if (resultSet()) {
+    <button class="sql-results__download" type="button" (click)="download.emit(selected())">
+      <i class="fa-solid fa-download" aria-hidden="true"></i>Download CSV
+    </button>
+    }
+  </div>
+  } @case ('failed') {
+  <div class="sql-results__message sql-results__message--error">
+    <p class="sql-results__headline">
+      @if (stoppedBefore(); as next) { The statement failed, so Run all stopped before statement {{ next }}. } @else {
+      The statement failed. }
+    </p>
+    <div class="sql-results__code">
+      <span class="sql-results__error">{{ errorText() }}</span>
+      <button class="sql-results__copy" type="button" aria-label="Copy the error message" (click)="copyError()">
+        <i class="fa-solid fa-copy" aria-hidden="true"></i>
+      </button>
+    </div>
+    @if (goToLabel(); as text) {
+    <div>
+      <button class="sql-results__goto" type="button" (click)="goTo.emit(selected())">
+        <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>{{ text }}
+      </button>
+    </div>
+    }
+  </div>
+  } @case ('cancelled') {
+  <div class="sql-results__message">
+    <p class="sql-results__headline">The statement was cancelled.</p>
+    <div class="sql-results__code">
+      <span class="sql-results__error">{{ errorText() }}</span>
+    </div>
+  </div>
+  } @case ('running') {
+  <div class="sql-results__message sql-results__message--muted">The statement is running.</div>
+  } @case ('waiting') {
+  <div class="sql-results__message sql-results__message--muted">The statement waits for the ones before it.</div>
+  } @default {
+  <div class="sql-results__message sql-results__message--muted">The statement did not run.</div>
+  } } } }
+</div>

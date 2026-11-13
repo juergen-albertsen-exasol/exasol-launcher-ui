@@ -24,3 +24,8 @@ if (!zoneAlreadyPatched) {
   const { setupZoneTestEnv } = require('jest-preset-angular/setup-env/zone');
   setupZoneTestEnv();
 }
+
+// CodeMirror measures text through Range, which jsdom does not lay out.
+Range.prototype.getBoundingClientRect = () => new DOMRect();
+Range.prototype.getClientRects = () =>
+  ({ length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] }) as unknown as DOMRectList;

@@ -92,6 +92,17 @@ const highlight = HighlightStyle.define([
   },
 ]);
 
+const IDENTIFIER_CHAR = /[\w$#."]/;
+
+/** The identifier at offset, including qualifiers such as `a.` in `a.NAME`, or the character there. */
+export function identifierAt(text: string, offset: number): Range {
+  let from = offset;
+  let to = offset;
+  while (from > 0 && IDENTIFIER_CHAR.test(text[from - 1])) from--;
+  while (to < text.length && IDENTIFIER_CHAR.test(text[to])) to++;
+  return to > from ? { from, to } : { from: offset, to: Math.min(offset + 1, text.length) };
+}
+
 interface Range {
   from: number;
   to: number;
@@ -256,21 +267,25 @@ export class SqlEditorComponent implements AfterViewInit, OnDestroy {
     this.editor.dispatch({ changes: { from: 0, to: this.editor.state.doc.length, insert: text } });
   }
 
-  /** Underlines the word at offset and marks its line, or clears the mark. */
+  /** Underlines the identifier at offset, qualified names included, and marks its line, or clears the mark; before the editor exists it does nothing. */
   markError(offset: number | undefined): void {
+    const view = this.view;
+    if (!view) return;
     if (offset === undefined) {
-      this.editor.dispatch({ effects: setError.of(null) });
+      view.dispatch({ effects: setError.of(null) });
       return;
     }
-    const word = this.editor.state.wordAt(offset);
-    const from = word?.from ?? offset;
-    const to = word?.to ?? Math.min(offset + 1, this.editor.state.doc.length);
-    this.editor.dispatch({ effects: setError.of(to > from ? { from, to } : null) });
+    const { from, to } = identifierAt(view.state.doc.toString(), Math.min(offset, view.state.doc.length));
+    view.dispatch({ effects: setError.of(to > from ? { from, to } : null) });
   }
 
-  /** Marks the lines of the running statement, or clears the mark. */
+  /** Marks the lines of the running statement, or clears the mark; before the editor exists it does nothing. */
   markRunning(range: Range | undefined): void {
-    this.editor.dispatch({ effects: setRunning.of(range ?? null) });
+    const view = this.view;
+    if (!view) return;
+    const length = view.state.doc.length;
+    const clamped = range && { from: Math.min(range.from, length), to: Math.min(range.to, length) };
+    view.dispatch({ effects: setRunning.of(clamped ?? null) });
   }
 
   focus(): void {

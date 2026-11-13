@@ -1,0 +1,80 @@
+<div class="page-wrapper sql">
+  @if (stopped()) {
+  <div class="sql__banner" role="status">
+    <span class="sql__banner-text">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      The database is not running. Start the deployment to run SQL and browse its schemas.
+    </span>
+    @if (operation(); as running) {
+    <exa-button [squared]="true" [shorter]="true" [loading]="true" [disabled]="true">
+      {{ operationVerb[running.kind] }}
+    </exa-button>
+    } @else if (canStart()) {
+    <exa-button class="sql__start" [squared]="true" [shorter]="true" (clickButton)="start()">
+      <i class="fa-solid fa-play sql__button-icon" aria-hidden="true"></i>Start
+    </exa-button>
+    }
+  </div>
+  }
+
+  <section class="sql__main" aria-label="Editor and results">
+    <div class="sql__toolbar" role="toolbar" aria-label="SQL actions">
+      @if (page().running) {
+      <button class="sql__button sql__button--danger sql__cancel" type="button" (click)="cancel()">
+        <i class="fa-solid fa-stop" aria-hidden="true"></i>Cancel
+      </button>
+      <span class="sql__progress" role="status">
+        Running statement {{ runningIndex() + 1 }} of {{ page().tabs.length }} · {{ elapsed() }}
+      </span>
+      } @else {
+      <button class="sql__button sql__button--primary sql__run" type="button" [disabled]="!ready()" (click)="run()">
+        <i class="fa-solid fa-play" aria-hidden="true"></i>Run <span class="sql__kbd">{{ runKey }}</span>
+      </button>
+      <button
+        class="sql__button sql__button--outline sql__run-all"
+        type="button"
+        [disabled]="!ready()"
+        (click)="runAll()"
+      >
+        <i class="fa-solid fa-forward" aria-hidden="true"></i>Run all <span class="sql__kbd">{{ runAllKey }}</span>
+      </button>
+      }
+      <button
+        class="sql__button sql__button--ghost sql__format"
+        type="button"
+        [disabled]="page().running"
+        (click)="format()"
+      >
+        <i class="fa-solid fa-align-left" aria-hidden="true"></i>Format
+      </button>
+      @if (ready()) {
+      <span class="sql__schema">
+        @if (page().schema; as schema) { Open schema <strong>{{ schema }}</strong> } @else { No schema open }
+      </span>
+      }
+    </div>
+
+    <div class="sql__editor">
+      <exa-sql-editor (textChange)="textChanged($event)" (run)="run()" (runAll)="runAll()"></exa-sql-editor>
+    </div>
+
+    @if (page().sessionRenewed) {
+    <p class="sql__renewed" role="status">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      The SQL session had ended, so the statements ran in a new one. Its open schema and any open transaction were
+      reset.
+    </p>
+    }
+
+    <exa-sql-results
+      [tabs]="page().tabs"
+      [selected]="page().selected"
+      [now]="now()"
+      [stopped]="stopped()"
+      [goToLabel]="goToLabel()"
+      (selectTab)="selectTab($event)"
+      (goTo)="goTo($event)"
+      (download)="download($event)"
+    ></exa-sql-results>
+  </section>
+</div>

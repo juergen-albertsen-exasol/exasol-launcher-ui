@@ -108,4 +108,40 @@ describe('LocalApiService', () => {
     ]);
     requests.forEach(request => request.flush({}));
   });
+
+  it('runs SQL in sessions on their endpoints', () => {
+    let exportUrl = '';
+    service.openSqlSession('my db').subscribe();
+    service.runStatement('my db', 'abc', 'SELECT 1').subscribe();
+    service.cancelStatement('my db', 'abc').subscribe();
+    service.createExport('my db', 'abc', 'SELECT 1').subscribe(url => (exportUrl = url));
+    service.listSchemas('my db').subscribe();
+    service.getSchema('my db', 'RETAIL').subscribe();
+
+    const requests = http.match(() => true);
+    expect(requests.map(request => [request.request.method, request.request.url, request.request.body])).toEqual([
+      ['POST', '/api/v1/deployments/my%20db/sql/sessions', null],
+      ['POST', '/api/v1/deployments/my%20db/sql/sessions/abc/statements', { sql: 'SELECT 1' }],
+      ['POST', '/api/v1/deployments/my%20db/sql/sessions/abc/cancel', null],
+      ['POST', '/api/v1/deployments/my%20db/sql/sessions/abc/exports', { sql: 'SELECT 1' }],
+      ['GET', '/api/v1/deployments/my%20db/schemas', null],
+      ['GET', '/api/v1/deployments/my%20db/schemas/RETAIL', null],
+    ]);
+    requests[3].flush({ id: 'x' }, { headers: { Location: '/api/v1/deployments/my%20db/sql/exports/x' } });
+    requests.forEach(request => request.cancelled || request.flush({}));
+    expect(exportUrl).toBe('/api/v1/deployments/my%20db/sql/exports/x');
+  });
+
+  it('closes a SQL session with a request that outlives the page', () => {
+    const fetch = jest.fn(() => Promise.resolve({}));
+    Object.defineProperty(window, 'fetch', { value: fetch, configurable: true });
+
+    service.closeSqlSession('default', 'abc');
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/deployments/default/sql/sessions/abc', {
+      method: 'DELETE',
+      keepalive: true,
+      credentials: 'same-origin',
+    });
+  });
 });
