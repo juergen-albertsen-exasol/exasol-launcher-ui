@@ -5,6 +5,7 @@ import { EMPTY, Observable, catchError, of, tap } from 'rxjs';
 import { DeploymentDetails, DeploymentSummary, PingResult, PingStatus } from '@exa/services/local-api/local-api.models';
 import { LocalApiService, problemDetail } from '@exa/services/local-api/local-api.service';
 import {
+  DeploymentRemovedAction,
   LoadDeploymentDetailsAction,
   LoadDeploymentsAction,
   PingDeploymentAction,
@@ -88,6 +89,17 @@ export class DeploymentsState {
         return EMPTY;
       })
     );
+  }
+
+  // The listing takes the launcher seconds, so a removed deployment leaves it at once.
+  @Action(DeploymentRemovedAction)
+  removed(ctx: StateContext<DeploymentsStateModel>, { name }: DeploymentRemovedAction) {
+    const { deployments, selectedName } = ctx.getState();
+    ctx.patchState({
+      deployments: deployments?.filter(deployment => deployment.name !== name),
+      selectedName: selectedName === name ? undefined : selectedName,
+    });
+    return ctx.dispatch(new LoadDeploymentsAction(true));
   }
 
   @Action(SelectDeploymentAction)

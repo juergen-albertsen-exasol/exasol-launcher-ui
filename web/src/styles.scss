@@ -49,3 +49,13 @@ mat-spinner {
 .cdk-global-overlay-wrapper:has(exa-notification-container) {
   z-index: 1000000;
 }
+
+// The red frame of dialogs that confirm destroying or removing a deployment.
+.exa-danger-dialog .mat-mdc-dialog-surface {
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow:
+    0 0 2px #444444,
+    0 0 0 2px $red,
+    0 15px 25px 10px rgba(0, 0, 0, 0.2);
+}

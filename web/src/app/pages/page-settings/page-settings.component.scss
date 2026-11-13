@@ -154,6 +154,51 @@
     @include outline-button;
   }
 
+  &__failure {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1px solid $red;
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    overflow-wrap: anywhere;
+
+    i {
+      color: $red;
+    }
+  }
+
+  &__danger {
+    @include info-box($red, $red);
+  }
+
+  &__danger-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--frame-color);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    > span {
+      flex: 1 1 20rem;
+    }
+
+    strong {
+      font-weight: 600;
+    }
+  }
+
+  &__danger-button {
+    @include outline-button($red);
+  }
+
   &__message {
     color: var(--text-secondary);
 

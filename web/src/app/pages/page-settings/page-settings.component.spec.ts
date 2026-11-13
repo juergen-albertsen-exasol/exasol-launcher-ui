@@ -4,16 +4,18 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { Store, provideStore } from '@ngxs/store';
-import { firstValueFrom, of, throwError } from 'rxjs';
+import { Subject, firstValueFrom, of, throwError } from 'rxjs';
 import { Configuration } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
+import { OperationEvent, OperationEventsService } from '@exa/services/local-api/operation-events.service';
 import { LoadDeploymentsAction } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
+import { LoadOperationsAction } from '@exa/store/operations/operations.actions';
 import { OperationsState } from '@exa/store/operations/operations.state';
 import { SettingsState } from '@exa/store/settings/settings.state';
-import { LocalApiFixture, localConfiguration, mockLocalApi, summary } from '../../testing/local-api.mock';
+import { LocalApiFixture, localConfiguration, mockLocalApi, operation, summary } from '../../testing/local-api.mock';
 import { PageSettingsComponent } from './page-settings.component';
 
 const awsConfiguration = (): Configuration => ({
@@ -48,7 +50,8 @@ const withOption = (name: string, value: number): Configuration => {
 describe('PageSettingsComponent', () => {
   let component: ComponentFixture<PageSettingsComponent>;
   let api: ReturnType<typeof mockLocalApi>;
-  let confirmed: boolean;
+  let dialogResult: unknown;
+  let events: Subject<OperationEvent>;
 
   const refresh = async () => {
     component.detectChanges();
@@ -58,7 +61,8 @@ describe('PageSettingsComponent', () => {
 
   const render = async (fixture: LocalApiFixture, name = 'default'): Promise<DebugElement> => {
     api = mockLocalApi(fixture);
-    confirmed = true;
+    dialogResult = true;
+    events = new Subject<OperationEvent>();
     await TestBed.configureTestingModule({
       imports: [PageSettingsComponent],
       providers: [
@@ -66,11 +70,13 @@ describe('PageSettingsComponent', () => {
         provideRouter([]),
         provideStore([DeploymentsState, OperationsState, SettingsState]),
         { provide: LocalApiService, useValue: api },
-        { provide: MatDialog, useValue: { open: jest.fn(() => ({ afterClosed: () => of(confirmed) })) } },
+        { provide: MatDialog, useValue: { open: jest.fn(() => ({ afterClosed: () => of(dialogResult) })) } },
+        { provide: OperationEventsService, useValue: { follow: jest.fn(() => events) } },
       ],
     }).compileComponents();
 
     await firstValueFrom(TestBed.inject(Store).dispatch(new LoadDeploymentsAction()));
+    await firstValueFrom(TestBed.inject(Store).dispatch(new LoadOperationsAction()));
     component = TestBed.createComponent(PageSettingsComponent);
     component.componentRef.setInput('name', name);
     await refresh();
@@ -143,7 +149,7 @@ describe('PageSettingsComponent', () => {
 
   it('keeps the options when the reset is cancelled', async () => {
     const root = await render({ deployments: [summary('default', 'stopped')] });
-    confirmed = false;
+    dialogResult = false;
 
     click(root, '.settings__reset');
 
@@ -222,5 +228,120 @@ describe('PageSettingsComponent', () => {
     );
     click(root, '.settings__deploy');
     expect(api.runOperation).toHaveBeenCalledWith('aws', 'deploy');
+  });
+
+  describe('danger zone', () => {
+    const rows = (root: DebugElement) =>
+      root.queryAll(By.css('.settings__danger-row button')).map(button => button.nativeElement.textContent.trim());
+
+    it('offers Destroy, Destroy and remove, and Remove folder', async () => {
+      const root = await render({ deployments: [summary('default', 'stopped')] });
+
+      expect(rows(root)).toEqual(['Destroy…', 'Destroy and remove…', 'Remove folder…']);
+    });
+
+    it('offers only Remove folder for a deployment that is not initialized', async () => {
+      const root = await render({ deployments: [summary('default', 'not_initialized')] }, 'default');
+      api.getConfiguration.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 500, error: { detail: 'not initialized' } }))
+      );
+      component.componentRef.setInput('name', 'default');
+      await refresh();
+
+      expect(rows(root)).toEqual(['Remove folder…']);
+    });
+
+    it('starts the operation the dialog confirms, with the folder it names', async () => {
+      const root = await render({ deployments: [summary('default', 'stopped')] });
+      dialogResult = 'destroy_and_remove';
+
+      click(root, '.settings__destroy-and-remove');
+
+      expect(TestBed.inject(MatDialog).open).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          data: {
+            deployment: 'default',
+            path: '/home/user/.exasol/personal/deployments/default',
+            action: 'destroy',
+            removeFolder: true,
+          },
+        })
+      );
+      expect(api.runOperation).toHaveBeenCalledWith('default', 'destroy_and_remove');
+    });
+
+    it('starts nothing when the dialog is cancelled', async () => {
+      const root = await render({ deployments: [summary('default', 'stopped')] });
+      dialogResult = undefined;
+
+      click(root, '.settings__remove');
+
+      expect(api.runOperation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('operations', () => {
+    it('shows the progress output in place of the settings while an operation runs', async () => {
+      const root = await render({ deployments: [summary('default', 'stopped')], operations: [operation()] });
+
+      events.next({ type: 'line', line: 'Starting the VM' });
+      await refresh();
+
+      expect(root.query(By.css('.operation-progress__log')).nativeElement.textContent).toBe('Starting the VM');
+      expect(root.query(By.css('.settings__options'))).toBeNull();
+      expect(root.query(By.css('.settings__danger'))).toBeNull();
+    });
+
+    it('shows the current settings and clears the apply banner when the operation succeeds', async () => {
+      const root = await render({ deployments: [summary('default', 'stopped')] });
+      type(field(root, 'infrastructure-cpu-count'), '4');
+      click(root, '.settings__save');
+      await refresh();
+      click(root, '.settings__apply');
+      api.listOperations.mockReturnValue(of([operation({ id: 'new' })]));
+      await firstValueFrom(TestBed.inject(Store).dispatch(new LoadOperationsAction()));
+      await refresh();
+      expect(root.query(By.css('.settings__options'))).toBeNull();
+
+      api.listOperations.mockReturnValue(of([operation({ id: 'new', status: 'succeeded' })]));
+      api.getConfiguration.mockClear();
+      events.next({ type: 'status', operation: operation({ id: 'new', status: 'succeeded' }) });
+      await refresh();
+
+      expect(api.listDeployments).toHaveBeenLastCalledWith(true);
+      expect(api.getConfiguration).toHaveBeenCalledWith('default');
+      expect(root.query(By.css('.settings__options'))).toBeTruthy();
+      expect(root.query(By.css('.settings__apply'))).toBeNull();
+    });
+
+    it('opens the Deployments page when a destroy with removal succeeds', async () => {
+      await render({
+        deployments: [summary('default', 'stopped')],
+        operations: [operation({ kind: 'destroy_and_remove' })],
+      });
+      const navigate = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      api.listOperations.mockReturnValue(of([operation({ kind: 'destroy_and_remove', status: 'succeeded' })]));
+      api.listDeployments.mockReturnValue(of([]));
+      events.next({ type: 'status', operation: operation({ kind: 'destroy_and_remove', status: 'succeeded' }) });
+      await refresh();
+
+      expect(TestBed.inject(Store).selectSnapshot(DeploymentsState.deployments)).toEqual([]);
+      expect(api.listDeployments).toHaveBeenLastCalledWith(true);
+      expect(navigate).toHaveBeenCalledWith(['/', 'deployments']);
+    });
+
+    it('reports a failed destroy beside the settings', async () => {
+      const root = await render({
+        deployments: [summary('default', 'stopped')],
+        operations: [operation({ kind: 'destroy', status: 'failed', error: 'Error: terraform failed' })],
+      });
+
+      expect(root.query(By.css('.settings__failure')).nativeElement.textContent).toContain(
+        'Destroying default failed: Error: terraform failed'
+      );
+      expect(root.query(By.css('.settings__options'))).toBeTruthy();
+    });
   });
 });

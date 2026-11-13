@@ -1,0 +1,55 @@
+<section class="danger-dialog" role="alertdialog" aria-labelledby="danger-dialog-title">
+  <header class="danger-dialog__header">
+    <i class="fa-solid fa-triangle-exclamation danger-dialog__icon" aria-hidden="true"></i>
+    <h2 class="danger-dialog__title" id="danger-dialog-title">
+      @if (data.action === 'remove') { Remove the folder of {{ data.deployment }}? } @else { Destroy
+      {{ data.deployment }}? }
+    </h2>
+  </header>
+  <form class="danger-dialog__body" (submit)="$event.preventDefault(); confirm()">
+    @if (data.action === 'remove') {
+    <p>
+      This removes the deployment folder without destroying the deployment's resources. Use it only when the resources
+      are already gone: any that remain can then no longer be destroyed with the launcher.
+    </p>
+    <p>
+      Folder to remove: <span class="danger-dialog__path">{{ data.path }}</span>
+    </p>
+    } @else {
+    <p>
+      Destroying a deployment deletes all resources, including all data. If you want to keep any data, create backups
+      and move them to another safe location first.
+    </p>
+    <label class="danger-dialog__check">
+      <input
+        class="danger-dialog__remove"
+        type="checkbox"
+        [checked]="removeFolder()"
+        (change)="removeFolder.set($any($event.target).checked)"
+      />
+      <span
+        >Also remove the deployment folder <span class="danger-dialog__path">{{ data.path }}</span></span
+      >
+    </label>
+    }
+    <div class="danger-dialog__field">
+      <label class="danger-dialog__label" for="danger-dialog-confirm">
+        Type <strong>{{ data.deployment }}</strong> to confirm
+      </label>
+      <input
+        class="danger-dialog__input"
+        id="danger-dialog-confirm"
+        autocomplete="off"
+        spellcheck="false"
+        [value]="typed()"
+        (input)="typed.set($any($event.target).value)"
+      />
+    </div>
+  </form>
+  <footer class="danger-dialog__footer">
+    <button class="danger-dialog__cancel" type="button" (click)="cancel()">Cancel</button>
+    <button class="danger-dialog__confirm" type="button" [disabled]="!confirmed()" (click)="confirm()">
+      {{ data.action === 'remove' ? 'Remove folder' : 'Destroy' }}
+    </button>
+  </footer>
+</section>

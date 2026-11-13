@@ -6,6 +6,12 @@ describe('operation labels', () => {
     expect(operationLabel(operation({ kind: 'start' }))).toBe('Starting default');
     expect(operationLabel(operation({ kind: 'stop', status: 'succeeded' }))).toBe('Stopped default');
     expect(operationLabel(operation({ kind: 'start', status: 'failed' }))).toBe('Start of default failed');
+    expect(operationLabel(operation({ kind: 'deploy' }))).toBe('Deploying default');
+    expect(operationLabel(operation({ kind: 'destroy', status: 'succeeded' }))).toBe('Destroyed default');
+    expect(operationLabel(operation({ kind: 'destroy_and_remove', status: 'failed' }))).toBe(
+      'Destroy and removal of default failed'
+    );
+    expect(operationLabel(operation({ kind: 'remove' }))).toBe('Removing the folder of default');
   });
 
   it('formats durations and ages', () => {

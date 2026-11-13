@@ -1,34 +1,55 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngxs/store';
+import { filter } from 'rxjs';
 import { ConfirmationModalComponent, ExaButtonComponent } from '@exasol/ui-common';
-import { DeploymentPage, deploymentPath } from '@exa/routes';
+import { DangerDialogComponent, DangerDialogData } from '@exa/components/danger-dialog/danger-dialog.component';
+import { OperationProgressComponent } from '@exa/components/operation-progress/operation-progress.component';
+import { DeploymentPage, LocalRoutes, deploymentPath } from '@exa/routes';
 import {
   ConfigurationOption,
   ConfigurationPreset,
+  Operation,
   OperationKind,
+  OperationStatus,
   OptionValue,
   PresetKind,
 } from '@exa/services/local-api/local-api.models';
-import { SelectDeploymentAction } from '@exa/store/deployments/deployments.actions';
+import {
+  DeploymentRemovedAction,
+  LoadDeploymentsAction,
+  SelectDeploymentAction,
+} from '@exa/store/deployments/deployments.actions';
+import { DeploymentsState } from '@exa/store/deployments/deployments.state';
+import { RUNNING_VERB } from '@exa/store/operations/operation-labels';
 import { RunOperationAction } from '@exa/store/operations/operations.actions';
-import { LoadConfigurationAction, ResetOptionsAction, SaveOptionsAction } from '@exa/store/settings/settings.actions';
+import { OperationsState } from '@exa/store/operations/operations.state';
+import {
+  ChangesAppliedAction,
+  LoadConfigurationAction,
+  ResetOptionsAction,
+  SaveOptionsAction,
+} from '@exa/store/settings/settings.actions';
 import { SettingsState } from '@exa/store/settings/settings.state';
 
 type Drafts = { [preset in PresetKind]?: { [option: string]: OptionValue } };
 
 const LOCAL_PRESET = 'local';
+const NOT_INITIALIZED = 'not_initialized';
+const REMOVING: OperationKind[] = [OperationKind.DESTROY_AND_REMOVE, OperationKind.REMOVE];
 
 @Component({
   selector: 'exa-page-settings',
   templateUrl: './page-settings.component.html',
   styleUrls: ['./page-settings.component.scss'],
-  imports: [ExaButtonComponent, RouterLink],
+  imports: [ExaButtonComponent, RouterLink, NgTemplateOutlet, OperationProgressComponent],
 })
 export class PageSettingsComponent {
   private readonly store = inject(Store);
   private readonly dialog = inject(MatDialog);
+  private readonly router = inject(Router);
 
   readonly name = input.required<string>();
 
@@ -53,6 +74,21 @@ export class PageSettingsComponent {
   readonly local = computed(() => this.configuration()?.infrastructure.name === LOCAL_PRESET);
   readonly drafts = signal<Drafts>({});
 
+  readonly runningVerb = RUNNING_VERB;
+  readonly summary = this.store.selectSignal(DeploymentsState.selectedSummary);
+  // Nothing exists to destroy before the deployment is initialized.
+  readonly canDestroy = computed(() => this.summary()?.status !== NOT_INITIALIZED);
+  private readonly operations = this.store.selectSignal(OperationsState.operations);
+  private readonly latest = computed(() => this.operations().find(operation => operation.deployment === this.name()));
+  readonly running = computed(() => {
+    const latest = this.latest();
+    return latest?.status === OperationStatus.RUNNING ? latest : undefined;
+  });
+  readonly failed = computed(() => {
+    const latest = this.latest();
+    return latest?.status === OperationStatus.FAILED ? latest : undefined;
+  });
+
   constructor() {
     effect(() => {
       const name = this.name();
@@ -67,6 +103,7 @@ export class PageSettingsComponent {
         untracked(() => this.dropSavedDrafts());
       }
     });
+    this.refreshWhenOperationEnds();
   }
 
   preset(kind: PresetKind): ConfigurationPreset | undefined {
@@ -129,12 +166,51 @@ export class PageSettingsComponent {
     this.store.dispatch(new RunOperationAction(this.name(), kind));
   }
 
+  confirmDanger(action: DangerDialogData['action'], removeFolder = false): void {
+    const name = this.name();
+    DangerDialogComponent.open(this.dialog, {
+      deployment: name,
+      path: this.summary()?.path ?? '',
+      action,
+      removeFolder,
+    })
+      .pipe(filter(kind => !!kind))
+      .subscribe(kind => this.store.dispatch(new RunOperationAction(name, kind)));
+  }
+
   private changedOptions(kind: PresetKind): { [option: string]: OptionValue } {
     const draft = this.drafts()[kind] ?? {};
     const options = this.preset(kind)?.options ?? [];
     return Object.fromEntries(
       Object.entries(draft).filter(([name, value]) => options.find(option => option.name === name)?.value !== value)
     );
+  }
+
+  private refreshWhenOperationEnds(): void {
+    let previous: Operation | undefined;
+    effect(() => {
+      const running = this.running();
+      const name = untracked(() => this.name());
+      if (previous?.deployment === name && !running) {
+        const ended = this.latest();
+        untracked(() => this.operationEnded(name, ended));
+      }
+      previous = running;
+    });
+  }
+
+  private operationEnded(name: string, ended: Operation | undefined): void {
+    if (ended?.status !== OperationStatus.SUCCEEDED) {
+      this.store.dispatch([new LoadDeploymentsAction(true), new LoadConfigurationAction(name)]);
+      return;
+    }
+    this.store.dispatch(new ChangesAppliedAction(name));
+    if (REMOVING.includes(ended.kind)) {
+      this.store.dispatch(new DeploymentRemovedAction(name));
+      this.router.navigate(['/', LocalRoutes.deployments]);
+      return;
+    }
+    this.store.dispatch([new LoadDeploymentsAction(true), new LoadConfigurationAction(name)]);
   }
 
   private dropSavedDrafts(): void {

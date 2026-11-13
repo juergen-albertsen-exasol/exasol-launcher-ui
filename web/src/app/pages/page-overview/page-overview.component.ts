@@ -1,7 +1,8 @@
-import { Component, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { Store } from '@ngxs/store';
 import { ExaButtonComponent } from '@exasol/ui-common';
 import { FolderLinkComponent } from '@exa/components/folder-link/folder-link.component';
+import { OperationProgressComponent } from '@exa/components/operation-progress/operation-progress.component';
 import {
   DEPLOYMENT_READY_STATUS,
   Operation,
@@ -9,7 +10,6 @@ import {
   OperationStatus,
   PingStatus,
 } from '@exa/services/local-api/local-api.models';
-import { OperationEventsService } from '@exa/services/local-api/operation-events.service';
 import {
   LoadDeploymentsAction,
   PingDeploymentAction,
@@ -17,7 +17,7 @@ import {
 } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
 import { RUNNING_VERB } from '@exa/store/operations/operation-labels';
-import { LoadOperationsAction, RunOperationAction } from '@exa/store/operations/operations.actions';
+import { RunOperationAction } from '@exa/store/operations/operations.actions';
 import { OperationsState } from '@exa/store/operations/operations.state';
 
 const STOPPABLE = ['running', 'database_ready', 'database_connection_failed'];
@@ -34,12 +34,10 @@ const RUNNING_STATE: Record<OperationKind, string> = {
   selector: 'exa-page-overview',
   templateUrl: './page-overview.component.html',
   styleUrls: ['./page-overview.component.scss'],
-  imports: [ExaButtonComponent, FolderLinkComponent],
+  imports: [ExaButtonComponent, FolderLinkComponent, OperationProgressComponent],
 })
 export class PageOverviewComponent {
   private readonly store = inject(Store);
-  private readonly events = inject(OperationEventsService);
-  private readonly log = viewChild<ElementRef<HTMLElement>>('log');
 
   readonly name = input.required<string>();
 
@@ -67,19 +65,10 @@ export class PageOverviewComponent {
   // The listing's status checks the runtime, while `info` reports the stored state.
   readonly canStart = computed(() => !this.running() && this.summary()?.status === 'stopped');
   readonly canStop = computed(() => !this.running() && STOPPABLE.includes(this.summary()?.status ?? ''));
-  readonly lines = signal<string[]>([]);
 
   constructor() {
     effect(() => this.store.dispatch(new SelectDeploymentAction(this.name())));
-    this.followRunningOperation();
     this.refreshWhenOperationEnds();
-    effect(() => {
-      this.lines();
-      const log = this.log()?.nativeElement;
-      if (log) {
-        log.scrollTop = log.scrollHeight;
-      }
-    });
   }
 
   checkAgain(): void {
@@ -88,24 +77,6 @@ export class PageOverviewComponent {
 
   run(kind: OperationKind): void {
     this.store.dispatch(new RunOperationAction(this.name(), kind));
-  }
-
-  private followRunningOperation(): void {
-    effect(onCleanup => {
-      const id = this.running()?.id;
-      if (!id) {
-        return;
-      }
-      untracked(() => this.lines.set([]));
-      const subscription = this.events.follow(id).subscribe(event => {
-        if (event.type === 'line') {
-          this.lines.update(lines => [...lines, event.line]);
-        } else {
-          this.store.dispatch(new LoadOperationsAction());
-        }
-      });
-      onCleanup(() => subscription.unsubscribe());
-    });
   }
 
   private refreshWhenOperationEnds(): void {

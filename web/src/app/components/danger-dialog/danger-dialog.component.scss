@@ -1,0 +1,125 @@
+@import 'colors';
+
+.danger-dialog {
+  color: var(--text-primary);
+  background-color: var(--background-secondary);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--frame-color);
+  }
+
+  &__icon {
+    color: $red;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+    font-size: 0.88rem;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__check {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  &__path {
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__label {
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+
+    strong {
+      color: var(--text-primary);
+    }
+  }
+
+  &__input {
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1rem;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background-color: color-mix(in srgb, $red 8%, var(--background-secondary));
+  }
+
+  &__cancel {
+    border: none;
+    background: none;
+    color: var(--primary-accent);
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__confirm {
+    height: 30px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 4px;
+    background-color: $red;
+    color: $white;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  &__cancel,
+  &__confirm,
+  &__input {
+    &:focus-visible {
+      outline: 2px solid #2e6fee;
+      outline-offset: 2px;
+    }
+  }
+}

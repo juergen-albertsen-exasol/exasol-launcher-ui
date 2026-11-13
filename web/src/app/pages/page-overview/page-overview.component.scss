@@ -154,39 +154,6 @@
     }
   }
 
-  &__operation {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  &__spinner {
-    flex: 0 0 auto;
-    width: 18px;
-    height: 18px;
-    border: 3px solid var(--frame-color);
-    border-top-color: var(--primary-accent);
-    border-radius: 50%;
-    animation: overview-spin 1s linear infinite;
-  }
-
-  // The same dark ground in both themes, as the design system's operation log.
-  &__log {
-    min-height: 3.2em;
-    max-height: 220px;
-    margin: 0;
-    overflow: auto;
-    padding: 12px 14px;
-    border-radius: 4px;
-    background-color: #1d1d1d;
-    color: #c7ccd7;
-    font-family: 'IBM Plex Mono', Menlo, monospace;
-    font-size: 0.81rem;
-    line-height: 1.6;
-    white-space: pre-wrap;
-  }
-
   &__message {
     color: var(--text-secondary);
 
@@ -194,11 +161,5 @@
       color: var(--text-primary);
       overflow-wrap: anywhere;
     }
-  }
-}
-
-@keyframes overview-spin {
-  to {
-    transform: rotate(360deg);
   }
 }

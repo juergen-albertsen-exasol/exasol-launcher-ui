@@ -142,7 +142,7 @@ describe('PageOverviewComponent', () => {
       await refresh();
 
       expect(text(root, '.overview__state')).toBe('starting');
-      expect(text(root, '.overview__log')).toBe('Starting the VM\nWaiting for the database');
+      expect(text(root, '.operation-progress__log')).toBe('Starting the VM\nWaiting for the database');
       expect(root.query(By.css('.overview__box[data-label="Connection"]'))).toBeNull();
       expect(root.query(By.css('.overview__start'))).toBeNull();
     });

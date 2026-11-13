@@ -1,6 +1,18 @@
 <div class="page-wrapper settings">
-  @if (loadError(); as error) {
+  @if (failed(); as operation) {
+  <p class="settings__failure" role="alert">
+    <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+    <span>{{ runningVerb[operation.kind] }} {{ operation.deployment }} failed: {{ operation.error }}</span>
+  </p>
+  } @if (running(); as operation) {
+  <section class="settings__panel" aria-label="Operation">
+    <exa-operation-progress [operation]="operation"></exa-operation-progress>
+  </section>
+  } @else if (loadError(); as error) {
   <p class="settings__message settings__message--error">{{ error }}</p>
+  <section class="settings__panel" aria-label="Settings">
+    <ng-container *ngTemplateOutlet="dangerZone"></ng-container>
+  </section>
   } @else if (configuration(); as config) { @if (config.apply_with === 'deploy') {
   <div class="settings__banner settings__banner--deploy" role="status">
     <span class="settings__banner-text">
@@ -116,8 +128,48 @@
       }
     </div>
     } }
+    <ng-container *ngTemplateOutlet="dangerZone"></ng-container>
   </section>
   } @else {
   <p class="settings__message">Loading…</p>
   }
 </div>
+
+<ng-template #dangerZone>
+  @if (summary()) {
+  <div class="settings__box settings__danger" data-label="Danger zone">
+    @if (canDestroy()) {
+    <div class="settings__danger-row">
+      <span>
+        <strong>Destroy this deployment.</strong> Deletes all its resources, including all data. The folder stays, so it
+        can be recreated.
+      </span>
+      <button class="settings__danger-button settings__destroy" type="button" (click)="confirmDanger('destroy')">
+        <i class="fa-solid fa-trash" aria-hidden="true"></i>Destroy…
+      </button>
+    </div>
+    <div class="settings__danger-row">
+      <span>
+        <strong>Destroy and remove the folder.</strong> Removes the deployment folder once its resources are destroyed.
+      </span>
+      <button
+        class="settings__danger-button settings__destroy-and-remove"
+        type="button"
+        (click)="confirmDanger('destroy', true)"
+      >
+        Destroy and remove…
+      </button>
+    </div>
+    }
+    <div class="settings__danger-row">
+      <span>
+        <strong>Remove the folder only.</strong> For deployments whose resources are already gone. Remaining resources
+        can then no longer be destroyed with the launcher.
+      </span>
+      <button class="settings__danger-button settings__remove" type="button" (click)="confirmDanger('remove')">
+        Remove folder…
+      </button>
+    </div>
+  </div>
+  }
+</ng-template>

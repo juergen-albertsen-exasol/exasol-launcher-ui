@@ -1,10 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Store, provideStore } from '@ngxs/store';
-import { firstValueFrom, throwError } from 'rxjs';
+import { NEVER, firstValueFrom, throwError } from 'rxjs';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 import { LocalApiFixture, mockLocalApi, runningDetails, summary } from '../../testing/local-api.mock';
-import { LoadDeploymentsAction, SelectDeploymentAction } from './deployments.actions';
+import { DeploymentRemovedAction, LoadDeploymentsAction, SelectDeploymentAction } from './deployments.actions';
 import { DeploymentsState } from './deployments.state';
 
 describe('DeploymentsState', () => {
@@ -77,5 +77,18 @@ describe('DeploymentsState', () => {
     await firstValueFrom(store.dispatch(new LoadDeploymentsAction()), { defaultValue: undefined });
 
     expect(store.selectSnapshot(DeploymentsState.listError)).toBe('launcher failed');
+  });
+
+  it('drops a removed deployment before the refreshed listing arrives', async () => {
+    setUp({ deployments: [summary('default'), summary('test')] });
+    await firstValueFrom(store.dispatch(new LoadDeploymentsAction()));
+    await firstValueFrom(store.dispatch(new SelectDeploymentAction('test')));
+    api.listDeployments.mockReturnValue(NEVER);
+
+    store.dispatch(new DeploymentRemovedAction('test'));
+
+    expect(store.selectSnapshot(DeploymentsState.deployments)?.map(d => d.name)).toEqual(['default']);
+    expect(store.selectSnapshot(DeploymentsState.selectedName)).toBeUndefined();
+    expect(api.listDeployments).toHaveBeenLastCalledWith(true);
   });
 });

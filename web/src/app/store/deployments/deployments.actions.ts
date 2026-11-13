@@ -17,3 +17,8 @@ export class PingDeploymentAction {
   static readonly type = '[Deployments] Ping';
   constructor(public name: string) {}
 }
+
+export class DeploymentRemovedAction {
+  static readonly type = '[Deployments] Removed';
+  constructor(public name: string) {}
+}

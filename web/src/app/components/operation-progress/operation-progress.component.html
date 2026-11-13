@@ -1,0 +1,8 @@
+<div class="operation-progress" [attr.data-label]="title()">
+  <p class="operation-progress__text">
+    <span class="operation-progress__spinner" aria-hidden="true"></span>
+    @if (operation().kind === operationKind.START) { Starting {{ operation().deployment }}. The launcher waits up to 30
+    minutes until the database accepts connections. } @else { {{ title() }} {{ operation().deployment }}. }
+  </p>
+  <pre class="operation-progress__log" #log aria-label="Launcher output">{{ lines().join('\n') }}</pre>
+</div>
