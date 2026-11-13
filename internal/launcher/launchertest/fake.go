@@ -17,6 +17,7 @@ key=$(printf '%s' "$*" | tr -c 'A-Za-z0-9' '_')
 [ -f "$dir/$key.stderr" ] && cat "$dir/$key.stderr" >&2
 while [ -f "$dir/$key.hold" ]; do sleep 0.02; done
 [ -f "$dir/$key.stdout" ] && cat "$dir/$key.stdout"
+[ -f "$dir/$key.then" ] && sh "$dir/$key.then"
 [ -f "$dir/$key.exit" ] && exit "$(cat "$dir/$key.exit")"
 [ -f "$dir/$key.stdout" ] || { echo "unexpected command: $*" >&2; exit 64; }
 `
@@ -66,6 +67,17 @@ func (f *Fake) RespondWithProgress(progress, stdout string, args ...string) {
 	f.remove(args, ".exit")
 	writeFile(f.t, f.path(args, ".stderr"), progress, dataMode)
 	writeFile(f.t, f.path(args, ".stdout"), stdout, dataMode)
+}
+
+// RespondAfter makes the command given by args print stdout and succeed once
+// the command given by after has run.
+func (f *Fake) RespondAfter(after []string, stdout string, args ...string) {
+	f.t.Helper()
+
+	next := f.path(args, ".next")
+	writeFile(f.t, next, stdout, dataMode)
+	writeFile(f.t, f.path(after, ".then"),
+		"mv '"+next+"' '"+f.path(args, ".stdout")+"'\n", dataMode)
 }
 
 // Hold makes the command given by args wait after its progress output until

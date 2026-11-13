@@ -56,6 +56,7 @@ func (a *api) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/deployments/{name}", a.getDeployment)
 	mux.HandleFunc("GET /api/v1/deployments/{name}/health/ping", a.pingDeployment)
 	mux.HandleFunc("POST /api/v1/deployments/{name}/open-folder", a.openDeploymentFolder)
+	a.registerConfiguration(mux)
 	a.registerOperations(mux)
 	mux.HandleFunc("/api/", func(response http.ResponseWriter, _ *http.Request) {
 		writeProblem(response, http.StatusNotFound, "The API has no such resource.")
