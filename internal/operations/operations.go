@@ -236,6 +236,19 @@ func (m *Manager) StartWith(
 	return current.snapshot, nil
 }
 
+// Running returns the operation that runs on the named deployment, if any.
+func (m *Manager) Running(deployment string) (Snapshot, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	operationID, running := m.running[deployment]
+	if !running {
+		return Snapshot{}, false
+	}
+
+	return m.operations[operationID].snapshot, true
+}
+
 // List returns the known operations, newest first.
 func (m *Manager) List() []Snapshot {
 	m.mu.Lock()

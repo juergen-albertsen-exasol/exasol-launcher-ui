@@ -43,3 +43,8 @@ func (c *Client) DiagnosticInfo(
 
 	return report, err
 }
+
+// Unlock removes the lock marker of the deployment folder in deploymentDir.
+func (c *Client) Unlock(ctx context.Context, deploymentDir string) error {
+	return c.run(ctx, "diag", "unlock", "--deployment-dir", deploymentDir)
+}

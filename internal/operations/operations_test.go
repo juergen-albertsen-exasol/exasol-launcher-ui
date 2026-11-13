@@ -364,3 +364,33 @@ func TestScriptLanguageKindsRunTheirLauncherCommands(t *testing.T) {
 		})
 	}
 }
+
+func TestRunningReportsADeploymentsRunningOperation(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.RespondWithProgress("", `{"deploymentState": "running", "databaseReady": true}`,
+		startArgs(defaultDeployment)...)
+	fake.Hold(startArgs(defaultDeployment)...)
+
+	manager := newManager(t, fake, nil)
+
+	_, running := manager.Running("default")
+	assert.False(t, running)
+
+	started, err := manager.Start(defaultDeployment, operations.KindStart, "")
+	require.NoError(t, err)
+
+	current, running := manager.Running("default")
+	assert.True(t, running)
+	assert.Equal(t, started.ID, current.ID)
+
+	_, running = manager.Running("test")
+	assert.False(t, running)
+
+	fake.Release(startArgs(defaultDeployment)...)
+	waitUntilFinished(t, manager, started.ID)
+
+	_, running = manager.Running("default")
+	assert.False(t, running)
+}

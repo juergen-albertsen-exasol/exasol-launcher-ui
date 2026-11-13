@@ -194,3 +194,48 @@ func TestTheReportWithholdsThePassword(t *testing.T) {
 	assert.JSONEq(t, `{"connection": {"password": "********"}, "note": "********"}`,
 		response.Body.String())
 }
+
+func TestUnlockingADeployment(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	fixture.fake.Respond("", diagArgs("unlock", defaultDir)...)
+
+	response := fixture.call(t, http.MethodPost, "/api/v1/deployments/default/diagnostics/unlock")
+
+	assert.Equal(t, http.StatusNoContent, response.Code, response.Body.String())
+	assert.Contains(t, fixture.fake.Calls(), "diag unlock --deployment-dir "+defaultDir)
+}
+
+func TestUnlockingWaitsForARunningOperation(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	fixture.fake.Respond("", diagArgs("unlock", defaultDir)...)
+
+	startArgs := lifecycleArgs("start", defaultDir)
+	fixture.fake.RespondWithProgress("", runningResult, startArgs...)
+	fixture.fake.Hold(startArgs...)
+
+	defer fixture.fake.Release(startArgs...)
+
+	started := fixture.call(t, http.MethodPost, "/api/v1/deployments/default/start")
+	require.Equal(t, http.StatusAccepted, started.Code)
+
+	response := fixture.call(t, http.MethodPost, "/api/v1/deployments/default/diagnostics/unlock")
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	assert.NotContains(t, fixture.fake.Calls(), "diag unlock --deployment-dir "+defaultDir)
+}
+
+func TestARefusedUnlockIsAConflict(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	fixture.fake.Fail("Error: cannot remove the lock\n", 1, diagArgs("unlock", defaultDir)...)
+
+	response := fixture.call(t, http.MethodPost, "/api/v1/deployments/default/diagnostics/unlock")
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	assert.Equal(t, "cannot remove the lock", decode[problem](t, response).Detail)
+}

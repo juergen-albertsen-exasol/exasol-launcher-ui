@@ -41,6 +41,7 @@ func (a *api) registerDiagnostics(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET "+diagnostics+"/local", a.getLocalRuntime)
 	mux.HandleFunc("GET "+diagnostics+"/info", a.getDiagnosticInfo)
+	mux.HandleFunc("POST "+diagnostics+"/unlock", a.unlock)
 }
 
 func (a *api) getLocalRuntime(response http.ResponseWriter, request *http.Request) {
@@ -247,4 +248,28 @@ func maskedLiteral(literal []byte, password string) []byte {
 	}
 
 	return replaced
+}
+
+// unlock removes the deployment folder's lock unless an operation of this
+// server holds it. Launchers started elsewhere stay invisible here.
+func (a *api) unlock(response http.ResponseWriter, request *http.Request) {
+	deployment, ok := a.findDeployment(response, request)
+	if !ok {
+		return
+	}
+
+	if _, running := a.operations.Running(deployment.Name); running {
+		writeProblem(response, http.StatusConflict,
+			"An operation runs on deployment "+deployment.Name+", so its folder stays locked.")
+
+		return
+	}
+
+	if err := a.launcher.Unlock(request.Context(), deployment.Path); err != nil {
+		answerRefusal(response, err)
+
+		return
+	}
+
+	response.WriteHeader(http.StatusNoContent)
 }
