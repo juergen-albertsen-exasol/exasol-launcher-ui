@@ -2,9 +2,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import {
   Configuration,
+  DataImport,
   DeploymentDetails,
   DeploymentSummary,
   DiagnosticReport,
+  ImportRequest,
+  ImportSource,
+  ImportSuggestion,
   LocalRuntime,
   McpClient,
   McpInstructions,
@@ -18,6 +22,7 @@ import {
   SqlSession,
   StatementOutcome,
   StatementProblem,
+  Upload,
 } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 
@@ -60,6 +65,9 @@ export interface LocalApiFixture {
   schemas?: { [name: string]: SchemaSummary[] };
   /** Schemas with their columns, by deployment and schema name. */
   schemaDetails?: { [name: string]: { [schema: string]: SchemaSummary } };
+  /** Suggestions by upload id; others are refused as not Parquet. */
+  suggestions?: { [uploadId: string]: ImportSuggestion };
+  imports?: { [name: string]: DataImport[] };
 }
 
 export const resultSet = (
@@ -232,6 +240,37 @@ export const operation = (overrides: Partial<Operation> = {}): Operation => ({
   ...overrides,
 });
 
+export const tripsSuggestion = (overrides: Partial<ImportSuggestion> = {}): ImportSuggestion => ({
+  source: { kind: 'upload', label: '2 files', files: 2, bytes: 98_400_000 },
+  schema: 'DATA',
+  table: 'YELLOW_TRIPDATA_2024',
+  rows: 5_972_150,
+  columns: [
+    { name: 'VendorID', type: 'DECIMAL(10,0)', parquet_type: 'INT32', sample: '2' },
+    { name: 'passenger_count', type: 'DECIMAL(20,0)', parquet_type: 'INT64', sample: '1' },
+    { name: 'trip_distance', type: 'DOUBLE PRECISION', parquet_type: 'DOUBLE', sample: '1.72' },
+  ],
+  importable: true,
+  problems: [],
+  ...overrides,
+});
+
+export const dataImport = (overrides: Partial<DataImport> = {}): DataImport => ({
+  id: 'import-1',
+  source: { kind: 'upload', label: '2 files', files: 2, bytes: 98_400_000 },
+  schema: 'DATA',
+  table: 'YELLOW_TRIPDATA_2024',
+  status: 'running',
+  started: '2026-11-13T09:00:00Z',
+  seconds: 12,
+  files: [
+    { name: 'yellow_tripdata_2024-01.parquet', status: 'succeeded', rows: 2_964_624 },
+    { name: 'yellow_tripdata_2024-02.parquet', status: 'running' },
+  ],
+  sql: 'CREATE SCHEMA IF NOT EXISTS "DATA";\nCOMMIT;',
+  ...overrides,
+});
+
 export const mockLocalApi = (fixture: LocalApiFixture) => ({
   listDeployments: jest.fn(() => of(fixture.deployments)),
   getDeployment: jest.fn((name: string) => of(fixture.details?.[name] ?? runningDetails(name))),
@@ -290,6 +329,36 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
     of(`/api/v1/deployments/${name}/sql/exports/e1`)
   ),
   listSchemas: jest.fn((name: string) => of(fixture.schemas?.[name] ?? [])),
+  createUpload: jest.fn<Observable<Upload>, [string, { name: string; size: number }[]]>((name, files) =>
+    of({
+      id: 'upload-1',
+      files: files.map((file, index) => ({
+        ...file,
+        url: `/api/v1/deployments/${name}/uploads/upload-1/files/${index}`,
+      })),
+    })
+  ),
+  uploadFile: jest.fn<Observable<number>, [string, Blob]>(() => of(0.5, 1)),
+  suggestImport: jest.fn<Observable<ImportSuggestion>, [string, ImportSource]>((...[, source]) => {
+    const suggestion = fixture.suggestions?.[source.upload_id];
+    return suggestion
+      ? of(suggestion)
+      : throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 422,
+              error: { code: 'not_parquet', detail: 'notes.parquet is not a Parquet file, or it is damaged.' },
+            })
+        );
+  }),
+  startImport: jest.fn<Observable<DataImport>, [string, ImportRequest]>((...[, request]) =>
+    of(dataImport({ id: 'import-1', schema: request.schema, table: request.table }))
+  ),
+  listImports: jest.fn((name: string) => of(fixture.imports?.[name] ?? [])),
+  getImport: jest.fn<Observable<DataImport>, [string, string]>((name, id) =>
+    of((fixture.imports?.[name] ?? []).find(found => found.id === id) ?? dataImport({ id }))
+  ),
+  cancelImport: jest.fn<Observable<void>, [string, string]>(() => of(undefined)),
   getSchema: jest.fn((name: string, schema: string) => {
     const details = fixture.schemaDetails?.[name]?.[schema];
     return details

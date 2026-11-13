@@ -2,6 +2,7 @@ import { ActivatedRouteSnapshot, Route, withRouterConfig } from '@angular/router
 import { NavItem } from '@exasol/ui-common';
 import { PageDeploymentsComponent } from './pages/page-deployments/page-deployments.component';
 import { PageDiagnosticsComponent } from './pages/page-diagnostics/page-diagnostics.component';
+import { PageImportComponent } from './pages/page-import/page-import.component';
 import { PageMcpComponent } from './pages/page-mcp/page-mcp.component';
 import { PageOverviewComponent } from './pages/page-overview/page-overview.component';
 import { PageScriptLanguagesComponent } from './pages/page-script-languages/page-script-languages.component';
@@ -16,6 +17,7 @@ export const LocalRoutes = {
 export const DeploymentPage = {
   OVERVIEW: 'overview',
   SQL: 'sql',
+  IMPORT: 'import',
   SIDECARS: 'sidecars',
   MCP: 'mcp',
   SCRIPT_LANGUAGES: 'script-languages',
@@ -46,6 +48,11 @@ export const APP_NAV_ITEMS: { [key: string]: NavItem } = {
     path: '',
     faIcon: ['fa-terminal'],
     text: 'SQL',
+  },
+  [DeploymentPage.IMPORT]: {
+    path: '',
+    faIcon: ['fa-file-import'],
+    text: 'Import data',
   },
   [DeploymentPage.SIDECARS]: {
     path: '',
@@ -110,6 +117,7 @@ export const appRoutes: Route[] = [
         loadComponent: () => import('./pages/page-sql/page-sql.component').then(module => module.PageSqlComponent),
         data: { title: APP_NAV_ITEMS[DeploymentPage.SQL].text },
       },
+      page(DeploymentPage.IMPORT, PageImportComponent),
       page(DeploymentPage.SIDECARS, PageSidecarsComponent),
       page(DeploymentPage.MCP, PageMcpComponent),
       page(DeploymentPage.SCRIPT_LANGUAGES, PageScriptLanguagesComponent),

@@ -11,6 +11,7 @@ import { APP_NAV_ITEMS, appRoutes, withAppRouterConfig } from '@exa/routes';
 import { sessionInterceptor } from '@exa/services/session/session.interceptor';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
 import { DiagnosticsState } from '@exa/store/diagnostics/diagnostics.state';
+import { ImportsState } from '@exa/store/imports/imports.state';
 import { OperationsState } from '@exa/store/operations/operations.state';
 import { ScriptLanguagesState } from '@exa/store/script-languages/script-languages.state';
 import { SettingsState } from '@exa/store/settings/settings.state';
@@ -38,6 +39,7 @@ bootstrapApplication(AppComponent, {
       ScriptLanguagesState,
       DiagnosticsState,
       SqlState,
+      ImportsState,
     ]),
     { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
   ],

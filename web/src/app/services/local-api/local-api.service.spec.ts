@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpEventType, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { LocalApiService } from './local-api.service';
@@ -143,5 +143,40 @@ describe('LocalApiService', () => {
       keepalive: true,
       credentials: 'same-origin',
     });
+  });
+
+  it('uploads files, suggests, and runs imports on their endpoints', () => {
+    const source = { kind: 'upload' as const, upload_id: 'u1' };
+    service.createUpload('my db', [{ name: 'a.parquet', size: 3 }]).subscribe();
+    service.suggestImport('my db', source).subscribe();
+    service.startImport('my db', { source, schema: 'DATA', table: 'A' }).subscribe();
+    service.listImports('my db').subscribe();
+    service.getImport('my db', 'i1').subscribe();
+    service.cancelImport('my db', 'i1').subscribe();
+
+    const requests = http.match(() => true);
+    expect(requests.map(request => [request.request.method, request.request.url, request.request.body])).toEqual([
+      ['POST', '/api/v1/deployments/my%20db/uploads', { files: [{ name: 'a.parquet', size: 3 }] }],
+      ['POST', '/api/v1/deployments/my%20db/import-suggestions', { source }],
+      ['POST', '/api/v1/deployments/my%20db/imports', { source, schema: 'DATA', table: 'A' }],
+      ['GET', '/api/v1/deployments/my%20db/imports', null],
+      ['GET', '/api/v1/deployments/my%20db/imports/i1', null],
+      ['DELETE', '/api/v1/deployments/my%20db/imports/i1', null],
+    ]);
+    requests.forEach(request => request.flush({}));
+  });
+
+  it('reports the progress of a file upload', () => {
+    const file = new Blob(['abcd']);
+    const progress: number[] = [];
+    service.uploadFile('/api/v1/deployments/default/uploads/u1/files/0', file).subscribe(sent => progress.push(sent));
+
+    const request = http.expectOne('/api/v1/deployments/default/uploads/u1/files/0');
+    request.event({ type: HttpEventType.UploadProgress, loaded: 1, total: 4 });
+    request.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toBe(file);
+    expect(progress).toEqual([0.25, 1]);
   });
 });

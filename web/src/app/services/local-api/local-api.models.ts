@@ -266,3 +266,106 @@ export interface SchemaSummary {
   virtual: boolean;
   objects: SchemaObject[];
 }
+
+export interface UploadFile {
+  name: string;
+  size: number;
+  url?: string;
+}
+
+export interface Upload {
+  id: string;
+  files: UploadFile[];
+}
+
+export interface ImportSource {
+  kind: 'upload';
+  upload_id: string;
+}
+
+export interface ImportSourceSummary {
+  kind: string;
+  label: string;
+  files: number;
+  bytes: number;
+}
+
+export interface SuggestedColumn {
+  name: string;
+  /** The Exasol type, or null when Exasol cannot import the column. */
+  type: string | null;
+  parquet_type: string;
+  sample: string | null;
+}
+
+export const ImportProblemCode = {
+  UNSUPPORTED_COLUMNS: 'unsupported_columns',
+  TABLE_TAKEN: 'table_taken',
+} as const;
+
+export interface ImportProblem {
+  code: string;
+  message: string;
+  columns?: string[];
+  alternative?: string;
+}
+
+export interface ImportSuggestion {
+  source: ImportSourceSummary;
+  schema: string;
+  table: string;
+  rows: number;
+  columns: SuggestedColumn[];
+  importable: boolean;
+  problems: ImportProblem[];
+}
+
+export interface ImportColumn {
+  name: string;
+  type: string;
+}
+
+export interface ImportRequest {
+  source: ImportSource;
+  schema: string;
+  table: string;
+  columns?: ImportColumn[];
+}
+
+export const ImportStatus = {
+  WAITING: 'waiting',
+  RUNNING: 'running',
+  SUCCEEDED: 'succeeded',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+} as const;
+export type ImportStatus = (typeof ImportStatus)[keyof typeof ImportStatus];
+
+export interface ImportFile {
+  name: string;
+  status: ImportStatus;
+  rows?: number;
+}
+
+export interface DataImport {
+  id: string;
+  source: ImportSourceSummary;
+  schema: string;
+  table: string;
+  status: ImportStatus;
+  started: string;
+  seconds: number;
+  files: ImportFile[];
+  /** The total once the import succeeded. */
+  rows?: number;
+  /** The statements the import runs, separated by semicolons and line breaks. */
+  sql: string;
+  /** The database's message for a failed import. */
+  message?: string;
+}
+
+export interface CodedProblem extends Problem {
+  code?: string;
+  alternative?: string;
+  columns?: string[];
+}

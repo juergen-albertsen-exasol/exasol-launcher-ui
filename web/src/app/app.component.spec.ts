@@ -14,6 +14,7 @@ import { AppComponent } from './app.component';
 import { APP_NAV_ITEMS, appRoutes, withAppRouterConfig } from './routes';
 import { SessionService } from './services/session/session.service';
 import { DeploymentsState } from './store/deployments/deployments.state';
+import { ImportsState } from './store/imports/imports.state';
 import { LoadOperationsAction } from './store/operations/operations.actions';
 import { ScriptLanguagesState } from './store/script-languages/script-languages.state';
 import { SettingsState } from './store/settings/settings.state';
@@ -46,6 +47,7 @@ describe('AppComponent', () => {
           ScriptLanguagesState,
           DiagnosticsState,
           SqlState,
+          ImportsState,
         ]),
         provideLocalApi({ deployments: [summary('default'), summary('test')], operations: [operation()] }),
         { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
@@ -102,6 +104,7 @@ describe('AppComponent', () => {
       expect(links.map(link => link.nativeElement.textContent.trim())).toEqual([
         'Overview',
         'SQL',
+        'Import data',
         'Sidecars',
         'MCP server',
         'Script languages',
@@ -120,6 +123,16 @@ describe('AppComponent', () => {
       expect(TestBed.inject(Router).url).toBe('/deployments/test/sql');
       expect(root.query(By.css('exa-page-sql'))).toBeTruthy();
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('SQL');
+    });
+
+    it('opens the Import data page from the navigation drawer', async () => {
+      root.query(By.css('.nav-content-wrapper a[href="/deployments/test/import"]')).nativeElement.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(Router).url).toBe('/deployments/test/import');
+      expect(root.query(By.css('exa-page-import'))).toBeTruthy();
+      expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Import data');
     });
 
     it('opens the Sidecars page from the navigation drawer', async () => {

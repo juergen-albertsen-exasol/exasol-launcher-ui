@@ -1,11 +1,16 @@
-import { HttpClient, HttpErrorResponse, HttpParams, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpEventType, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, filter, map } from 'rxjs';
 import {
+  CodedProblem,
   Configuration,
+  DataImport,
   DeploymentDetails,
   DeploymentSummary,
   DiagnosticReport,
+  ImportRequest,
+  ImportSource,
+  ImportSuggestion,
   LocalRuntime,
   McpClient,
   McpInstructions,
@@ -20,6 +25,7 @@ import {
   Sidecar,
   SqlSession,
   StatementOutcome,
+  Upload,
 } from './local-api.models';
 
 export const API_BASE_PATH = '/api/v1';
@@ -176,10 +182,55 @@ export class LocalApiService {
     );
   }
 
+  createUpload(name: string, files: { name: string; size: number }[]): Observable<Upload> {
+    return this.http.post<Upload>(`${this.deploymentPath(name)}/uploads`, { files });
+  }
+
+  /** Sends a file to its upload URL, emitting the fraction sent so far. */
+  uploadFile(url: string, file: Blob): Observable<number> {
+    return this.http.put(url, file, { reportProgress: true, observe: 'events' }).pipe(
+      filter(event => event.type === HttpEventType.UploadProgress || event.type === HttpEventType.Response),
+      map(event =>
+        event.type === HttpEventType.UploadProgress && event.total
+          ? event.loaded / event.total
+          : event.type === HttpEventType.Response
+          ? 1
+          : 0
+      )
+    );
+  }
+
+  suggestImport(name: string, source: ImportSource): Observable<ImportSuggestion> {
+    return this.http.post<ImportSuggestion>(`${this.deploymentPath(name)}/import-suggestions`, { source });
+  }
+
+  startImport(name: string, request: ImportRequest): Observable<DataImport> {
+    return this.http.post<DataImport>(`${this.deploymentPath(name)}/imports`, request);
+  }
+
+  listImports(name: string): Observable<DataImport[]> {
+    return this.http.get<DataImport[]>(`${this.deploymentPath(name)}/imports`);
+  }
+
+  getImport(name: string, id: string): Observable<DataImport> {
+    return this.http.get<DataImport>(`${this.deploymentPath(name)}/imports/${encodeURIComponent(id)}`);
+  }
+
+  cancelImport(name: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.deploymentPath(name)}/imports/${encodeURIComponent(id)}`);
+  }
+
+  private deploymentPath(name: string): string {
+    return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}`;
+  }
+
   pingDeployment(name: string): Observable<PingResult> {
     return this.http.get<PingResult>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/health/ping`);
   }
 }
+
+export const codedProblem = (error: unknown): CodedProblem | undefined =>
+  error instanceof HttpErrorResponse ? (error.error as CodedProblem | null) ?? undefined : undefined;
 
 export const problemDetail = (error: unknown): string => {
   if (error instanceof HttpErrorResponse) {
