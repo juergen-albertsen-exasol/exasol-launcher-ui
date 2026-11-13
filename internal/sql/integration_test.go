@@ -165,3 +165,43 @@ func TestCancelAndExportAgainstALocalDeployment(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestSchemasOfALocalDeployment(t *testing.T) {
+	t.Parallel()
+
+	name, target := localTarget(t)
+	manager := sql.NewManager(sql.NewDriverOpener())
+	t.Cleanup(func() { _ = manager.Close(context.Background()) })
+
+	const schemaName = "EXASOL_LOCAL_UI_META"
+
+	sessionID, err := manager.Open(t.Context(), name, target)
+	require.NoError(t, err)
+
+	run(t, manager, name, sessionID, "CREATE SCHEMA IF NOT EXISTS "+schemaName)
+	t.Cleanup(func() {
+		_, _ = manager.Run(context.Background(), name, sessionID,
+			"DROP SCHEMA IF EXISTS "+schemaName+" CASCADE")
+	})
+	run(t, manager, name, sessionID, "CREATE OR REPLACE TABLE "+schemaName+
+		".REGIONS (REGION_ID DECIMAL(9,0), REGION_NAME VARCHAR(100) UTF8)")
+	run(t, manager, name, sessionID, "CREATE OR REPLACE VIEW "+schemaName+
+		".REGION_NAMES AS SELECT REGION_NAME FROM "+schemaName+".REGIONS")
+
+	schemas, err := manager.Schemas(t.Context(), name, target)
+	require.NoError(t, err)
+	assert.Contains(t, schemas, sql.Schema{Name: schemaName, Objects: []sql.Object{
+		{Name: "REGIONS", Kind: "table"},
+		{Name: "REGION_NAMES", Kind: "view"},
+	}})
+
+	schema, err := manager.Schema(t.Context(), name, target, schemaName)
+	require.NoError(t, err)
+	assert.Equal(t, []sql.Column{
+		{Name: "REGION_ID", Type: "DECIMAL(9,0)"},
+		{Name: "REGION_NAME", Type: "VARCHAR(100) UTF8"},
+	}, schema.Objects[0].Columns)
+
+	_, err = manager.Schema(t.Context(), name, target, "NO_SUCH_SCHEMA")
+	require.ErrorIs(t, err, sql.ErrNoSchema)
+}
