@@ -78,6 +78,8 @@ and avoid em dashes.
   the fake launcher executable tests use.
 - `internal/database/`: reading `secrets.json`, pinging the database, password
   redaction.
+- `internal/sql/`: SQL sessions, statements, cancellation, CSV exports, and
+  schema metadata; `sqltest/` holds the fake database tests use.
 - `internal/webapp/`: embeds the Angular build from `web/`.
 - `web/`: the Angular application. The `go.mod` there only keeps Go tooling
   out of `node_modules`.
@@ -94,14 +96,17 @@ operations with Start, Stop, and the activity indicator (`add-operations`),
 the Settings page with configuration, deploy, destroy, and remove
 (`add-deployment-settings`), the Sidecars and MCP server pages
 (`add-sidecar-management`), the Script languages page
-(`add-script-languages`), and the Diagnostics page (`add-diagnostics`). Long
+(`add-script-languages`), the Diagnostics page (`add-diagnostics`), and the
+SQL page with its editor, schema browser, results, and history
+(`add-sql-editor`). Long
 launcher commands go through `internal/operations`; later changes reuse it,
 passing what an operation acts on as `operations.Parameters`
 (`OperationParameters` in the browser), and operations on a part of a
 deployment name it, as sidecar and script language operations do. Each
-deployment page has its own route segment (`overview`, `sidecars`, `mcp`,
-`script-languages`, `settings`, `diagnostics`) and drawer entry in
-`routes.ts`. Short launcher failures arrive as `LauncherError`, so endpoints
+deployment page has its own route segment (`overview`, `sql`, `sidecars`,
+`mcp`, `script-languages`, `settings`, `diagnostics`) and drawer entry in
+`routes.ts`; the SQL page loads lazily to keep the initial bundle under its
+budget. Short launcher failures arrive as `LauncherError`, so endpoints
 can answer 409 with the launcher's message.
 
 The canvas already draws every remaining screen. Implement these as separate
@@ -116,8 +121,13 @@ in parentheses):
    `presets list/export`, `cache list/clean/unlock`, `diag cache`, and
    `version --latest`.
 
-A SQL client and health views follow later and replace `exasol connect` in
-the UI.
+Health views from `EXA_STATISTICS` follow later.
+
+SQL findings: statements run through the driver's exported connection
+(`internal/sql/driver.go`), because `database/sql` loses row counts and the
+driver's own decoding turns numbers into `float64`. Cancelling a statement
+runs `KILL STATEMENT IN SESSION` on a separate connection; cancelling the
+driver's context leaves the connection out of step.
 
 Launcher findings that affect these changes:
 
