@@ -16,9 +16,10 @@ const (
 	// MaxRows is the number of rows a statement's result reports.
 	MaxRows = 10_000
 
-	idleTimeout    = 30 * time.Minute
-	janitorPeriod  = time.Minute
-	sessionIDBytes = 16
+	idleTimeout   = 30 * time.Minute
+	janitorPeriod = time.Minute
+	randomIDBytes = 16
+	abortedCode   = "R0003"
 )
 
 var (
@@ -44,7 +45,7 @@ type ResultSet struct {
 	Truncated bool
 }
 
-// Manager holds the SQL sessions of all deployments.
+// Manager holds the SQL sessions and pending exports of all deployments.
 type Manager struct {
 	opener      Opener
 	idleTimeout time.Duration
@@ -52,6 +53,7 @@ type Manager struct {
 
 	mutex    sync.Mutex
 	sessions map[string]*session
+	exports  map[string]export
 	closed   bool
 
 	janitor     sync.Once
@@ -60,11 +62,18 @@ type Manager struct {
 
 type session struct {
 	deployment string
+	target     database.Target
 	conn       Conn
-	password   string
+	// databaseSession is the database's id of the session, which KILL
+	// STATEMENT names.
+	databaseSession string
+	opener          Opener
 
+	// mutex is held while a statement is killed, so that the kill cannot
+	// reach a later statement.
 	mutex    sync.Mutex
 	lastUsed time.Time
+	schema   *string
 	running  bool
 	closed   bool
 }
@@ -75,6 +84,7 @@ func NewManager(opener Opener) *Manager {
 		idleTimeout: idleTimeout,
 		now:         time.Now,
 		sessions:    map[string]*session{},
+		exports:     map[string]export{},
 		stopJanitor: make(chan struct{}),
 	}
 }
@@ -86,14 +96,22 @@ func (m *Manager) Open(
 	deployment string,
 	target database.Target,
 ) (string, error) {
-	m.janitor.Do(func() { go m.closeIdleSessions() })
+	m.janitor.Do(func() { go m.closeIdleSessions(context.WithoutCancel(ctx)) })
 
 	conn, err := m.opener.Open(ctx, deployment, target)
 	if err != nil {
 		return "", database.Redact(err, target.Password)
 	}
 
-	sessionID := newSessionID()
+	databaseSession, err := firstValue(ctx, conn, "SELECT CURRENT_SESSION")
+	if err != nil || databaseSession == nil {
+		_ = conn.Close()
+
+		return "", asStatementError(
+			errors.Join(errors.New("cannot read the database session"), err), target.Password)
+	}
+
+	sessionID := newRandomID()
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -105,37 +123,33 @@ func (m *Manager) Open(
 	}
 
 	m.sessions[sessionID] = &session{
-		deployment: deployment,
-		conn:       conn,
-		password:   target.Password,
-		lastUsed:   m.now(),
+		deployment:      deployment,
+		target:          target,
+		conn:            conn,
+		databaseSession: *databaseSession,
+		opener:          m.opener,
+		lastUsed:        m.now(),
 	}
 
 	return sessionID, nil
 }
 
-// CloseSession ends the session id of deployment.
-func (m *Manager) CloseSession(deployment, sessionID string) error {
-	m.mutex.Lock()
-
-	found, ok := m.sessions[sessionID]
-	if !ok || found.deployment != deployment {
-		m.mutex.Unlock()
-
-		return ErrNoSession
+// CloseSession ends the session sessionID of deployment, aborting its
+// running statement.
+func (m *Manager) CloseSession(ctx context.Context, deployment, sessionID string) error {
+	found, err := m.remove(deployment, sessionID)
+	if err != nil {
+		return err
 	}
 
-	delete(m.sessions, sessionID)
-	m.mutex.Unlock()
-
-	found.close()
+	found.close(ctx)
 
 	return nil
 }
 
-// Run runs statement in the session id of deployment. A failure of the
-// statement is a *StatementError; when the connection failed, the session
-// ends.
+// Run runs statement in the session sessionID of deployment. A failure of
+// the statement is a *StatementError; when the connection failed, the
+// session ends.
 func (m *Manager) Run(
 	ctx context.Context,
 	deployment, sessionID, statement string,
@@ -144,28 +158,49 @@ func (m *Manager) Run(
 	if err != nil {
 		return Outcome{}, err
 	}
-	defer found.release(m.now())
 
 	// Statements ignore the request's cancellation: the driver gives up on a
 	// cancelled request without reading its response, which leaves the
-	// connection out of step.
-	ctx = context.WithoutCancel(ctx)
+	// connection out of step. Cancel kills the statement instead.
+	statementCtx := context.WithoutCancel(ctx)
 
-	outcome, err := found.run(ctx, statement)
+	outcome, err := found.run(statementCtx, statement)
+	found.release(m.now(), outcome.Schema, err == nil)
+
 	if err == nil {
 		return outcome, nil
 	}
 
-	statementErr := asStatementError(err, found.password)
+	statementErr := asStatementError(err, found.target.Password)
 	if statementErr.Code == "" {
-		_ = m.CloseSession(deployment, sessionID)
+		if removed, removeErr := m.remove(deployment, sessionID); removeErr == nil {
+			removed.close(ctx)
+		}
 	}
 
 	return Outcome{}, statementErr
 }
 
+// Cancel aborts the statement running in the session sessionID of
+// deployment, if any.
+func (m *Manager) Cancel(ctx context.Context, deployment, sessionID string) error {
+	found, err := m.find(deployment, sessionID)
+	if err != nil {
+		return err
+	}
+
+	found.mutex.Lock()
+	defer found.mutex.Unlock()
+
+	if !found.running {
+		return nil
+	}
+
+	return found.kill(ctx)
+}
+
 // Close ends every session and closes the opener.
-func (m *Manager) Close() error {
+func (m *Manager) Close(ctx context.Context) error {
 	m.mutex.Lock()
 
 	if m.closed {
@@ -177,23 +212,47 @@ func (m *Manager) Close() error {
 	m.closed = true
 	sessions := m.sessions
 	m.sessions = map[string]*session{}
+	m.exports = map[string]export{}
 	close(m.stopJanitor)
 	m.mutex.Unlock()
 
 	for _, found := range sessions {
-		found.close()
+		found.close(ctx)
 	}
 
 	return m.opener.Close()
 }
 
-func (m *Manager) claim(deployment, sessionID string) (*session, error) {
+func (m *Manager) find(deployment, sessionID string) (*session, error) {
 	m.mutex.Lock()
-	found, ok := m.sessions[sessionID]
-	m.mutex.Unlock()
+	defer m.mutex.Unlock()
 
+	found, ok := m.sessions[sessionID]
 	if !ok || found.deployment != deployment {
 		return nil, ErrNoSession
+	}
+
+	return found, nil
+}
+
+func (m *Manager) remove(deployment, sessionID string) (*session, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	found, ok := m.sessions[sessionID]
+	if !ok || found.deployment != deployment {
+		return nil, ErrNoSession
+	}
+
+	delete(m.sessions, sessionID)
+
+	return found, nil
+}
+
+func (m *Manager) claim(deployment, sessionID string) (*session, error) {
+	found, err := m.find(deployment, sessionID)
+	if err != nil {
+		return nil, err
 	}
 
 	found.mutex.Lock()
@@ -213,7 +272,7 @@ func (m *Manager) claim(deployment, sessionID string) (*session, error) {
 	return found, nil
 }
 
-func (m *Manager) closeIdleSessions() {
+func (m *Manager) closeIdleSessions(ctx context.Context) {
 	ticker := time.NewTicker(janitorPeriod)
 	defer ticker.Stop()
 
@@ -222,29 +281,36 @@ func (m *Manager) closeIdleSessions() {
 		case <-m.stopJanitor:
 			return
 		case <-ticker.C:
-			m.closeIdle()
+			m.closeIdle(ctx)
 		}
 	}
 }
 
-func (m *Manager) closeIdle() {
-	deadline := m.now().Add(-m.idleTimeout)
+func (m *Manager) closeIdle(ctx context.Context) {
+	now := m.now()
+	deadline := now.Add(-m.idleTimeout)
 
 	m.mutex.Lock()
 
 	var idle []*session
 
-	for id, found := range m.sessions {
+	for sessionID, found := range m.sessions {
 		if found.idleSince(deadline) {
 			idle = append(idle, found)
-			delete(m.sessions, id)
+			delete(m.sessions, sessionID)
+		}
+	}
+
+	for exportID, pending := range m.exports {
+		if !now.Before(pending.expires) {
+			delete(m.exports, exportID)
 		}
 	}
 
 	m.mutex.Unlock()
 
 	for _, found := range idle {
-		found.close()
+		found.close(ctx)
 	}
 }
 
@@ -253,6 +319,13 @@ func (s *session) idleSince(deadline time.Time) bool {
 	defer s.mutex.Unlock()
 
 	return !s.running && s.lastUsed.Before(deadline)
+}
+
+func (s *session) openSchema() *string {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.schema
 }
 
 func (s *session) run(ctx context.Context, statement string) (Outcome, error) {
@@ -276,7 +349,14 @@ func (s *session) run(ctx context.Context, statement string) (Outcome, error) {
 		outcome.RowCount = rowCount
 	}
 
-	outcome.Schema, err = s.openSchema(ctx)
+	outcome.Schema, err = firstValue(ctx, s.conn, "SELECT CURRENT_SCHEMA")
+
+	// A cancel that arrives as the statement finishes kills this query
+	// instead, which must not fail the statement.
+	if statementErr, ok := errors.AsType[*StatementError](err); ok &&
+		statementErr.Code == abortedCode {
+		outcome.Schema, err = firstValue(ctx, s.conn, "SELECT CURRENT_SCHEMA")
+	}
 
 	return outcome, err
 }
@@ -302,40 +382,45 @@ func readResultSet(ctx context.Context, rows Rows) (*ResultSet, error) {
 	return resultSet, nil
 }
 
-func (s *session) openSchema(ctx context.Context) (*string, error) {
-	var schema Value
+// firstValue returns the first value of the first row of query's result.
+func firstValue(ctx context.Context, conn Conn, query string) (Value, error) {
+	var value Value
 
-	_, err := s.conn.Execute(ctx, "SELECT CURRENT_SCHEMA", func(rows Rows) error {
+	_, err := conn.Execute(ctx, query, func(rows Rows) error {
 		row, err := rows.Next(ctx)
 		if err != nil {
 			return err
 		}
 
-		schema = row[0]
+		value = row[0]
 
 		return nil
 	})
 
-	return schema, err
+	return value, err
 }
 
 // release ends a statement's run, and closes the connection when the
 // session ended meanwhile.
-func (s *session) release(now time.Time) {
+func (s *session) release(now time.Time, schema *string, succeeded bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	s.running = false
 	s.lastUsed = now
 
+	if succeeded {
+		s.schema = schema
+	}
+
 	if s.closed {
 		_ = s.conn.Close()
 	}
 }
 
-// close ends the session; a running statement's release closes the
-// connection once the statement returns.
-func (s *session) close() {
+// close ends the session and aborts its running statement, whose release
+// then closes the connection.
+func (s *session) close(ctx context.Context) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -345,13 +430,33 @@ func (s *session) close() {
 
 	s.closed = true
 
-	if !s.running {
-		_ = s.conn.Close()
+	if s.running {
+		_ = s.kill(ctx)
+
+		return
 	}
+
+	_ = s.conn.Close()
 }
 
-func newSessionID() string {
-	id := make([]byte, sessionIDBytes)
+// kill aborts the session's running statement from a separate connection.
+func (s *session) kill(ctx context.Context) error {
+	conn, err := s.opener.Open(ctx, s.deployment, s.target)
+	if err != nil {
+		return database.Redact(err, s.target.Password)
+	}
+	defer conn.Close()
+
+	_, err = conn.Execute(ctx, "KILL STATEMENT IN SESSION "+s.databaseSession, nil)
+	if err != nil {
+		return asStatementError(err, s.target.Password)
+	}
+
+	return nil
+}
+
+func newRandomID() string {
+	id := make([]byte, randomIDBytes)
 	_, _ = rand.Read(id)
 
 	return hex.EncodeToString(id)

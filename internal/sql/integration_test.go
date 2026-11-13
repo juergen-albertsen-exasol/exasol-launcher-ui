@@ -3,15 +3,17 @@
 package sql_test
 
 import (
+	"context"
+	"errors"
 	"os/exec"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"time"
 
 	"github.com/exasol/exasol-local-ui/internal/database"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const integrationSchema = "EXASOL_LOCAL_UI_IT"
@@ -56,41 +58,43 @@ func localTarget(t *testing.T) (string, database.Target) {
 	return "", database.Target{}
 }
 
-func run(t *testing.T, manager *sql.Manager, name, id, statement string) sql.Outcome {
+func run(t *testing.T, manager *sql.Manager, name, sessionID, statement string) sql.Outcome {
 	t.Helper()
 
-	outcome, err := manager.Run(t.Context(), name, id, statement)
+	outcome, err := manager.Run(t.Context(), name, sessionID, statement)
 	require.NoError(t, err, statement)
 
 	return outcome
 }
 
 func TestStatementsRunAgainstALocalDeployment(t *testing.T) {
+	t.Parallel()
+
 	name, target := localTarget(t)
 	manager := sql.NewManager(sql.NewDriverOpener())
-	t.Cleanup(func() { _ = manager.Close() })
+	t.Cleanup(func() { _ = manager.Close(context.Background()) })
 
-	id, err := manager.Open(t.Context(), name, target)
+	sessionID, err := manager.Open(t.Context(), name, target)
 	require.NoError(t, err)
 
-	run(t, manager, name, id, "CREATE SCHEMA IF NOT EXISTS "+integrationSchema)
+	run(t, manager, name, sessionID, "CREATE SCHEMA IF NOT EXISTS "+integrationSchema)
 	t.Cleanup(func() {
-		_, _ = manager.Run(t.Context(), name, id,
+		_, _ = manager.Run(t.Context(), name, sessionID,
 			"DROP SCHEMA IF EXISTS "+integrationSchema+" CASCADE")
 	})
 
-	opened := run(t, manager, name, id, "OPEN SCHEMA "+integrationSchema)
+	opened := run(t, manager, name, sessionID, "OPEN SCHEMA "+integrationSchema)
 	require.NotNil(t, opened.Schema)
 	assert.Equal(t, integrationSchema, *opened.Schema)
 
-	run(t, manager, name, id,
+	run(t, manager, name, sessionID,
 		"CREATE OR REPLACE TABLE REGIONS (REGION_ID DECIMAL(9,0), "+
 			"REGION_NAME VARCHAR(100) UTF8, AMOUNT DECIMAL(36,2))")
-	inserted := run(t, manager, name, id,
+	inserted := run(t, manager, name, sessionID,
 		"INSERT INTO REGIONS VALUES (1, 'EMEA', 12345678901234567890.25), (2, NULL, -1)")
 	assert.Equal(t, int64(2), inserted.RowCount)
 
-	query := run(t, manager, name, id,
+	query := run(t, manager, name, sessionID,
 		"SELECT REGION_NAME, AMOUNT FROM REGIONS ORDER BY REGION_ID")
 	require.NotNil(t, query.ResultSet)
 	assert.Equal(t, []sql.Column{
@@ -102,21 +106,62 @@ func TestStatementsRunAgainstALocalDeployment(t *testing.T) {
 	assert.Equal(t, "12345678901234567890.25", *query.ResultSet.Rows[0][1])
 	assert.Nil(t, query.ResultSet.Rows[1][0])
 
-	deleted := run(t, manager, name, id, "DELETE FROM REGIONS WHERE AMOUNT < 0")
+	deleted := run(t, manager, name, sessionID, "DELETE FROM REGIONS WHERE AMOUNT < 0")
 	assert.Equal(t, int64(1), deleted.RowCount)
 
-	large := run(t, manager, name, id, "SELECT RANGE_VALUE FROM VALUES BETWEEN 1 AND 25000")
+	large := run(t, manager, name, sessionID, "SELECT RANGE_VALUE FROM VALUES BETWEEN 1 AND 25000")
 	require.NotNil(t, large.ResultSet)
 	assert.Len(t, large.ResultSet.Rows, sql.MaxRows)
 	assert.Equal(t, int64(25000), large.ResultSet.Total)
 	assert.True(t, large.ResultSet.Truncated)
 	assert.Equal(t, "10000", *large.ResultSet.Rows[sql.MaxRows-1][0])
 
-	_, err = manager.Run(t.Context(), name, id, "SELECT REGOIN_NAME\nFROM REGIONS")
-	statementErr, ok := err.(*sql.StatementError)
+	_, err = manager.Run(t.Context(), name, sessionID, "SELECT REGOIN_NAME\nFROM REGIONS")
+	statementErr, ok := errors.AsType[*sql.StatementError](err)
 	require.True(t, ok, err)
 	assert.Equal(t, "42000", statementErr.Code)
 	assert.Contains(t, statementErr.Message, "REGOIN_NAME")
 	assert.Equal(t, 1, statementErr.Line)
 	assert.Equal(t, 8, statementErr.Column)
+}
+
+func TestCancelAndExportAgainstALocalDeployment(t *testing.T) {
+	t.Parallel()
+
+	name, target := localTarget(t)
+	manager := sql.NewManager(sql.NewDriverOpener())
+	t.Cleanup(func() { _ = manager.Close(context.Background()) })
+
+	sessionID, err := manager.Open(t.Context(), name, target)
+	require.NoError(t, err)
+
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := manager.Run(t.Context(), name, sessionID,
+			"SELECT COUNT(*) FROM (SELECT 1 FROM VALUES BETWEEN 1 AND 100000) A, "+
+				"(SELECT 1 FROM VALUES BETWEEN 1 AND 100000) B, "+
+				"(SELECT 1 FROM VALUES BETWEEN 1 AND 10000) C")
+		done <- err
+	}()
+
+	time.Sleep(time.Second)
+	require.NoError(t, manager.Cancel(t.Context(), name, sessionID))
+
+	statementErr, ok := errors.AsType[*sql.StatementError](<-done)
+	require.True(t, ok)
+	assert.Equal(t, "R0003", statementErr.Code)
+
+	run(t, manager, name, sessionID, "OPEN SCHEMA SYS")
+
+	exportID, err := manager.CreateExport(name, sessionID,
+		"SELECT RANGE_VALUE FROM VALUES BETWEEN 1 AND 25000")
+	require.NoError(t, err)
+
+	err = manager.Export(t.Context(), name, exportID, func(rows sql.Rows) error {
+		assert.Equal(t, 25000, countRows(t, rows))
+
+		return nil
+	})
+	require.NoError(t, err)
 }

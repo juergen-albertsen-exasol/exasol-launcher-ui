@@ -12,7 +12,10 @@ import (
 	"github.com/exasol/exasol-local-ui/internal/sql"
 )
 
-const runningBuffer = 100
+const (
+	runningBuffer = 100
+	killPrefix    = "KILL STATEMENT IN SESSION "
+)
 
 // Response is the fake database's answer to a statement.
 type Response struct {
@@ -34,12 +37,14 @@ type Response struct {
 
 // Fake is a database whose answers tests define. Unknown statements fail
 // with error code 42000. Each connection keeps its own open schema, which
-// OPEN SCHEMA sets and SELECT CURRENT_SCHEMA reports.
+// OPEN SCHEMA sets and SELECT CURRENT_SCHEMA reports, and KILL STATEMENT IN
+// SESSION aborts a statement that blocks.
 type Fake struct {
 	mutex      sync.Mutex
 	responses  map[string]Response
 	executed   []string
 	opened     []database.Target
+	sessions   map[string]*conn
 	open       int
 	closed     bool
 	connectErr error
@@ -47,7 +52,11 @@ type Fake struct {
 }
 
 func NewFake() *Fake {
-	return &Fake{responses: map[string]Response{}, running: make(chan string, runningBuffer)}
+	return &Fake{
+		responses: map[string]Response{},
+		sessions:  map[string]*conn{},
+		running:   make(chan string, runningBuffer),
+	}
 }
 
 // Respond defines the answer to statement.
@@ -115,7 +124,10 @@ func (f *Fake) Open(_ context.Context, _ string, target database.Target) (sql.Co
 	f.opened = append(f.opened, target)
 	f.open++
 
-	return &conn{fake: f, session: strconv.Itoa(len(f.opened))}, nil
+	opened := &conn{fake: f, session: strconv.Itoa(len(f.opened))}
+	f.sessions[opened.session] = opened
+
+	return opened, nil
 }
 
 func (f *Fake) Close() error {
@@ -136,6 +148,8 @@ type conn struct {
 	fake    *Fake
 	session string
 	schema  sql.Value
+	// abort is set while a statement blocks.
+	abort chan struct{}
 }
 
 func (c *conn) Execute(
@@ -160,6 +174,10 @@ func (c *conn) Execute(
 			Columns: []sql.Column{{Name: "CURRENT_SESSION", Type: "DECIMAL(20,0)"}},
 			Rows:    [][]sql.Value{{Text(c.session)}},
 		}})
+	case strings.HasPrefix(statement, killPrefix):
+		c.fake.kill(strings.TrimPrefix(statement, killPrefix))
+
+		return 0, nil
 	case strings.HasPrefix(statement, "OPEN SCHEMA "):
 		schema := strings.Trim(strings.TrimPrefix(statement, "OPEN SCHEMA "), `"`)
 		c.schema = &schema
@@ -170,8 +188,9 @@ func (c *conn) Execute(
 	}
 
 	if response.Block != nil {
-		c.fake.running <- statement
-		<-response.Block
+		if err := c.block(statement, response.Block); err != nil {
+			return 0, err
+		}
 	}
 
 	if response.Err != nil {
@@ -185,6 +204,16 @@ func (c *conn) Execute(
 	return 0, read(&rows{response: response})
 }
 
+func (f *Fake) kill(session string) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	if target, found := f.sessions[session]; found && target.abort != nil {
+		close(target.abort)
+		target.abort = nil
+	}
+}
+
 func (c *conn) Close() error {
 	c.fake.mutex.Lock()
 	defer c.fake.mutex.Unlock()
@@ -192,6 +221,27 @@ func (c *conn) Close() error {
 	c.fake.open--
 
 	return nil
+}
+
+func (c *conn) block(statement string, release chan struct{}) error {
+	abort := make(chan struct{})
+
+	c.fake.mutex.Lock()
+	c.abort = abort
+	c.fake.mutex.Unlock()
+
+	c.fake.running <- statement
+
+	select {
+	case <-release:
+		c.fake.mutex.Lock()
+		c.abort = nil
+		c.fake.mutex.Unlock()
+
+		return nil
+	case <-abort:
+		return &sql.StatementError{Code: "R0003", Message: "Client requested execution abort."}
+	}
 }
 
 type rows struct {

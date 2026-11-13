@@ -2,8 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"io"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -19,6 +22,7 @@ const (
 	rowCountOutcome   = "row_count"
 	sqlSessionsPath   = "/api/v1/deployments/{name}/sql/sessions"
 	sqlSessionPath    = sqlSessionsPath + "/{id}"
+	sqlExportsPath    = "/api/v1/deployments/{name}/sql/exports"
 )
 
 type sqlSessionView struct {
@@ -59,6 +63,9 @@ func (a *api) registerSQL(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+sqlSessionsPath, a.openSQLSession)
 	mux.HandleFunc("DELETE "+sqlSessionPath, a.closeSQLSession)
 	mux.HandleFunc("POST "+sqlSessionPath+"/statements", a.runStatement)
+	mux.HandleFunc("POST "+sqlSessionPath+"/cancel", a.cancelStatement)
+	mux.HandleFunc("POST "+sqlSessionPath+"/exports", a.createExport)
+	mux.HandleFunc("GET "+sqlExportsPath+"/{id}", a.downloadExport)
 }
 
 // databaseTarget resolves the database of the requested deployment and
@@ -135,7 +142,8 @@ func (a *api) openSQLSession(response http.ResponseWriter, request *http.Request
 }
 
 func (a *api) closeSQLSession(response http.ResponseWriter, request *http.Request) {
-	err := a.sql.CloseSession(request.PathValue("name"), request.PathValue("id"))
+	err := a.sql.CloseSession(request.Context(),
+		request.PathValue("name"), request.PathValue("id"))
 	if err != nil {
 		answerSQLError(response, err)
 
@@ -145,20 +153,29 @@ func (a *api) closeSQLSession(response http.ResponseWriter, request *http.Reques
 	response.WriteHeader(http.StatusNoContent)
 }
 
-func (a *api) runStatement(response http.ResponseWriter, request *http.Request) {
+func decodeStatement(response http.ResponseWriter, request *http.Request) (string, bool) {
 	var body statementRequest
 	if !decodeSizedBody(response, request, &body, maxStatementBytes) {
-		return
+		return "", false
 	}
 
 	if strings.TrimSpace(body.SQL) == "" {
 		writeProblem(response, http.StatusBadRequest, "The request holds no statement.")
 
+		return "", false
+	}
+
+	return body.SQL, true
+}
+
+func (a *api) runStatement(response http.ResponseWriter, request *http.Request) {
+	statement, ok := decodeStatement(response, request)
+	if !ok {
 		return
 	}
 
 	outcome, err := a.sql.Run(request.Context(),
-		request.PathValue("name"), request.PathValue("id"), body.SQL)
+		request.PathValue("name"), request.PathValue("id"), statement)
 	if err != nil {
 		answerSQLError(response, err)
 
@@ -166,6 +183,115 @@ func (a *api) runStatement(response http.ResponseWriter, request *http.Request) 
 	}
 
 	writeJSON(response, http.StatusOK, newStatementView(outcome))
+}
+
+func (a *api) cancelStatement(response http.ResponseWriter, request *http.Request) {
+	err := a.sql.Cancel(request.Context(), request.PathValue("name"), request.PathValue("id"))
+	if err != nil {
+		answerSQLError(response, err)
+
+		return
+	}
+
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (a *api) createExport(response http.ResponseWriter, request *http.Request) {
+	statement, ok := decodeStatement(response, request)
+	if !ok {
+		return
+	}
+
+	name := request.PathValue("name")
+
+	exportID, err := a.sql.CreateExport(name, request.PathValue("id"), statement)
+	if err != nil {
+		answerSQLError(response, err)
+
+		return
+	}
+
+	response.Header().Set("Location", "/api/v1/deployments/"+name+"/sql/exports/"+exportID)
+	writeJSON(response, http.StatusCreated, sqlSessionView{ID: exportID})
+}
+
+// downloadExport streams an export's rows as RFC 4180 CSV. A failure after
+// the first row aborts the response, so that the download fails rather than
+// ends early.
+func (a *api) downloadExport(response http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	name := request.PathValue("name")
+	started := false
+
+	err := a.sql.Export(ctx, name, request.PathValue("id"),
+		func(rows sql.Rows) error {
+			started = true
+
+			response.Header().Set("Content-Type", "text/csv; charset=utf-8")
+			response.Header().Set("Content-Disposition",
+				mime.FormatMediaType("attachment", map[string]string{
+					"filename": name + "-result.csv",
+				}))
+
+			return writeCSV(ctx, response, rows)
+		})
+	if err == nil {
+		return
+	}
+
+	if started {
+		panic(http.ErrAbortHandler)
+	}
+
+	if errors.Is(err, sql.ErrNoExport) {
+		writeProblem(response, http.StatusNotFound, err.Error())
+
+		return
+	}
+
+	answerSQLError(response, err)
+}
+
+func writeCSV(ctx context.Context, output io.Writer, rows sql.Rows) error {
+	writer := csv.NewWriter(output)
+	writer.UseCRLF = true
+
+	columns := rows.Columns()
+	record := make([]string, len(columns))
+
+	for index, column := range columns {
+		record[index] = column.Name
+	}
+
+	if err := writer.Write(record); err != nil {
+		return err
+	}
+
+	for {
+		row, err := rows.Next(ctx)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		for index, value := range row {
+			record[index] = ""
+			if value != nil {
+				record[index] = *value
+			}
+		}
+
+		if err := writer.Write(record); err != nil {
+			return err
+		}
+	}
+
+	writer.Flush()
+
+	return writer.Error()
 }
 
 func newStatementView(outcome sql.Outcome) statementView {

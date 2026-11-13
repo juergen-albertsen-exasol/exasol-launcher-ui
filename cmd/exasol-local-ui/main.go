@@ -117,7 +117,7 @@ func serve(ctx context.Context, opts options, env environment) error {
 	}
 
 	sessions := sql.NewManager(sql.NewDriverOpener())
-	defer sessions.Close()
+	defer sessions.Close(context.WithoutCancel(ctx))
 
 	token := server.NewToken()
 	accessPath := "/"

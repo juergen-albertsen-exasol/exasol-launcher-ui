@@ -30,7 +30,7 @@ func newSQLFixture(t *testing.T, fake *launchertest.Fake) *sqlFixture {
 
 	database := sqltest.NewFake()
 	manager := sql.NewManager(database)
-	t.Cleanup(func() { _ = manager.Close() })
+	t.Cleanup(func() { _ = manager.Close(t.Context()) })
 
 	return &sqlFixture{
 		t:        t,
@@ -291,4 +291,125 @@ func TestAStatementNeedsABody(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest,
 		fixture.call(http.MethodPost, session+"/statements", "{").Code)
 	assert.Equal(t, http.StatusBadRequest, fixture.run(session, " \n").Code)
+}
+
+func TestCancellingAStatementAnswersItsRequestWithTheCancellation(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSQLFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	fixture.database.Respond("SELECT SLOW", sqltest.Response{Block: make(chan struct{})})
+	fixture.database.Respond("SELECT 1", sqltest.Response{RowCount: 0})
+	session := fixture.openSession()
+
+	done := make(chan *httptest.ResponseRecorder)
+
+	go func() {
+		done <- fixture.run(session, "SELECT SLOW")
+	}()
+
+	<-fixture.database.Running()
+
+	cancelled := fixture.call(http.MethodPost, session+"/cancel", "")
+	statement := <-done
+	next := fixture.run(session, "SELECT 1")
+
+	assert.Equal(t, http.StatusNoContent, cancelled.Code)
+	assert.Equal(t, http.StatusUnprocessableEntity, statement.Code)
+	assert.JSONEq(t, `{
+	  "type": "about:blank",
+	  "title": "Unprocessable Entity",
+	  "detail": "Client requested execution abort.",
+	  "code": "R0003"
+	}`, statement.Body.String())
+	assert.Equal(t, http.StatusOK, next.Code)
+}
+
+func TestCancellingAnUnknownSessionIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSQLFixture(t, fakeWithDeploymentDir(t, runningInfo))
+
+	response := fixture.call(http.MethodPost, sessionsURL+"/unknown/cancel", "")
+
+	assert.Equal(t, http.StatusNotFound, response.Code)
+}
+
+func (f *sqlFixture) createExport(session, statement string) string {
+	f.t.Helper()
+
+	body, err := json.Marshal(statementRequest{SQL: statement})
+	require.NoError(f.t, err)
+
+	response := f.call(http.MethodPost, session+"/exports", string(body))
+	require.Equal(f.t, http.StatusCreated, response.Code, response.Body.String())
+
+	return response.Header().Get("Location")
+}
+
+func TestDownloadingALargeResultAsCSV(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSQLFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	fixture.database.Respond("SELECT N, NAME FROM BIG", sqltest.Response{
+		Columns: []sql.Column{
+			{Name: "N", Type: "DECIMAL(18,0)"},
+			{Name: "NAME", Type: "VARCHAR(10) UTF8"},
+		},
+		Rows:  [][]sql.Value{{sqltest.Text("0"), sqltest.Text(`a "quoted", name`)}},
+		Total: 2_964_624,
+		Generate: func(index int64) []sql.Value {
+			return []sql.Value{sqltest.Text(strconv.FormatInt(index, 10)), nil}
+		},
+	})
+	session := fixture.openSession()
+
+	location := fixture.createExport(session, "SELECT N, NAME FROM BIG")
+	download := fixture.call(http.MethodGet, location, "")
+
+	assert.Regexp(t, `^/api/v1/deployments/default/sql/exports/[0-9a-f]{32}$`, location)
+	require.Equal(t, http.StatusOK, download.Code)
+	assert.Equal(t, "text/csv; charset=utf-8", download.Header().Get("Content-Type"))
+	assert.Equal(t, `attachment; filename=default-result.csv`,
+		download.Header().Get("Content-Disposition"))
+
+	body := download.Body.String()
+	assert.Equal(t, 2_964_625, strings.Count(body, "\r\n"))
+	assert.True(t, strings.HasPrefix(body, "N,NAME\r\n0,\"a \"\"quoted\"\", name\"\r\n1,\r\n"))
+}
+
+func TestAnExportURLServesOneDownload(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSQLFixture(t, fakeWithDeploymentDir(t, runningInfo))
+	fixture.database.Respond("SELECT 1", sqltest.Response{
+		Columns: []sql.Column{{Name: "1", Type: "DECIMAL(1,0)"}},
+		Rows:    [][]sql.Value{{sqltest.Text("1")}},
+	})
+
+	location := fixture.createExport(fixture.openSession(), "SELECT 1")
+
+	assert.Equal(t, http.StatusOK, fixture.call(http.MethodGet, location, "").Code)
+	assert.Equal(t, http.StatusNotFound, fixture.call(http.MethodGet, location, "").Code)
+}
+
+func TestAFailingExportAnswersWithTheStatementError(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSQLFixture(t, fakeWithDeploymentDir(t, runningInfo))
+
+	location := fixture.createExport(fixture.openSession(), "SELECT NOPE")
+	response := fixture.call(http.MethodGet, location, "")
+
+	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
+	assert.Equal(t, "42000", decode[map[string]any](t, response)["code"])
+}
+
+func TestAnExportOfAnUnknownSessionIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	fixture := newSQLFixture(t, fakeWithDeploymentDir(t, runningInfo))
+
+	response := fixture.call(http.MethodPost, sessionsURL+"/unknown/exports", `{"sql": "SELECT 1"}`)
+
+	assert.Equal(t, http.StatusNotFound, response.Code)
 }

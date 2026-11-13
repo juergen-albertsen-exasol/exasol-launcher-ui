@@ -25,7 +25,7 @@ func openSession(t *testing.T) (*sql.Manager, *sqltest.Fake, string) {
 
 	fake := sqltest.NewFake()
 	manager := sql.NewManager(fake)
-	t.Cleanup(func() { _ = manager.Close() })
+	t.Cleanup(func() { _ = manager.Close(t.Context()) })
 
 	id, err := manager.Open(t.Context(), deployment, target)
 	require.NoError(t, err)
@@ -164,13 +164,7 @@ func TestASecondStatementWhileOneRunsIsRefused(t *testing.T) {
 	block := make(chan struct{})
 	fake.Respond("SELECT SLOW", sqltest.Response{RowCount: 1, Block: block})
 
-	done := make(chan error)
-
-	go func() {
-		_, err := manager.Run(t.Context(), deployment, sessionID, "SELECT SLOW")
-		done <- err
-	}()
-
+	done := runInBackground(t, manager, sessionID, "SELECT SLOW")
 	<-fake.Running()
 
 	_, err := manager.Run(t.Context(), deployment, sessionID, "SELECT SLOW")
@@ -185,11 +179,11 @@ func TestAClosedSessionIsGone(t *testing.T) {
 
 	manager, fake, sessionID := openSession(t)
 
-	require.NoError(t, manager.CloseSession(deployment, sessionID))
+	require.NoError(t, manager.CloseSession(t.Context(), deployment, sessionID))
 
 	_, err := manager.Run(t.Context(), deployment, sessionID, "SELECT 1")
 	require.ErrorIs(t, err, sql.ErrNoSession)
-	require.ErrorIs(t, manager.CloseSession(deployment, sessionID), sql.ErrNoSession)
+	require.ErrorIs(t, manager.CloseSession(t.Context(), deployment, sessionID), sql.ErrNoSession)
 	assert.Zero(t, fake.OpenConnections())
 }
 
@@ -200,29 +194,69 @@ func TestASessionBelongsToItsDeployment(t *testing.T) {
 
 	_, err := manager.Run(t.Context(), "test", sessionID, "SELECT 1")
 	require.ErrorIs(t, err, sql.ErrNoSession)
-	require.ErrorIs(t, manager.CloseSession("test", sessionID), sql.ErrNoSession)
+	require.ErrorIs(t, manager.CloseSession(t.Context(), "test", sessionID), sql.ErrNoSession)
 }
 
-func TestClosingASessionWhileItRunsClosesTheConnectionAfterwards(t *testing.T) {
-	t.Parallel()
+func runInBackground(
+	t *testing.T,
+	manager *sql.Manager,
+	sessionID, statement string,
+) <-chan error {
+	t.Helper()
 
-	manager, fake, sessionID := openSession(t)
-	block := make(chan struct{})
-	fake.Respond("SELECT SLOW", sqltest.Response{RowCount: 1, Block: block})
-
-	done := make(chan error)
+	done := make(chan error, 1)
 
 	go func() {
-		_, err := manager.Run(t.Context(), deployment, sessionID, "SELECT SLOW")
+		_, err := manager.Run(t.Context(), deployment, sessionID, statement)
 		done <- err
 	}()
 
-	<-fake.Running()
-	require.NoError(t, manager.CloseSession(deployment, sessionID))
-	assert.Equal(t, 1, fake.OpenConnections())
+	return done
+}
 
-	close(block)
-	<-done
+func TestCancelAbortsTheRunningStatementAndKeepsTheSession(t *testing.T) {
+	t.Parallel()
+
+	manager, fake, sessionID := openSession(t)
+	fake.Respond("SELECT SLOW", sqltest.Response{RowCount: 1, Block: make(chan struct{})})
+	fake.Respond("SELECT 1", sqltest.Response{RowCount: 0})
+
+	done := runInBackground(t, manager, sessionID, "SELECT SLOW")
+	<-fake.Running()
+
+	require.NoError(t, manager.Cancel(t.Context(), deployment, sessionID))
+
+	statementErr, ok := errors.AsType[*sql.StatementError](<-done)
+	require.True(t, ok)
+	assert.Equal(t, "R0003", statementErr.Code)
+	assert.Contains(t, fake.Executed(), "KILL STATEMENT IN SESSION 1")
+
+	_, err := manager.Run(t.Context(), deployment, sessionID, "SELECT 1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, fake.OpenConnections())
+}
+
+func TestCancelWithoutARunningStatementDoesNothing(t *testing.T) {
+	t.Parallel()
+
+	manager, fake, sessionID := openSession(t)
+
+	require.NoError(t, manager.Cancel(t.Context(), deployment, sessionID))
+	require.ErrorIs(t, manager.Cancel(t.Context(), "test", sessionID), sql.ErrNoSession)
+	assert.Equal(t, []string{"SELECT CURRENT_SESSION"}, fake.Executed())
+}
+
+func TestClosingASessionAbortsItsRunningStatement(t *testing.T) {
+	t.Parallel()
+
+	manager, fake, sessionID := openSession(t)
+	fake.Respond("SELECT SLOW", sqltest.Response{RowCount: 1, Block: make(chan struct{})})
+
+	done := runInBackground(t, manager, sessionID, "SELECT SLOW")
+	<-fake.Running()
+
+	require.NoError(t, manager.CloseSession(t.Context(), deployment, sessionID))
+	require.Error(t, <-done)
 	assert.Zero(t, fake.OpenConnections())
 }
 
@@ -253,7 +287,7 @@ func TestClosingTheManagerClosesEverySession(t *testing.T) {
 	_, err := manager.Open(t.Context(), deployment, target)
 	require.NoError(t, err)
 
-	require.NoError(t, manager.Close())
+	require.NoError(t, manager.Close(t.Context()))
 
 	assert.Zero(t, fake.OpenConnections())
 	assert.True(t, fake.Closed())

@@ -1,6 +1,9 @@
 package sql
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 var (
 	StatementErrorOf = statementError
@@ -13,5 +16,5 @@ var (
 func AdvanceClock(m *Manager, duration time.Duration) {
 	now := m.now()
 	m.now = func() time.Time { return now.Add(duration) }
-	m.closeIdle()
+	m.closeIdle(context.Background())
 }
