@@ -25,7 +25,8 @@ reachable from the host.
 
 ## Startup
 
-`cmd/exasol-launcher-ui/main.go` parses the flags, checks that the launcher
+`cmd/exasol-launcher-ui/main.go` parses the flags (`--version` prints the
+build-time `main.version` and exits), checks that the launcher
 runs (`launcher.Client.Check`), binds `127.0.0.1:<port>`, creates the long-lived
 managers (SQL sessions, uploads, imports, operations), and prints the access
 URL with a fresh token. `server.NewGuard(...).Wrap(server.NewHandler(...))` is
@@ -204,6 +205,31 @@ serves it with `--web-dir`.
 - Check destructive operations on a scratch deployment from
   `exasol init local -d <name>`, which creates no VM, never on real ones.
 - Web tests use Jest with the mocks in `src/app/testing`.
+
+## Releases
+
+Pushing a tag `v<major>.<minor>.<patch>` runs
+`.github/workflows/release.yml`: it runs `task test`, then GoReleaser
+(`.goreleaser.yaml`) builds the web application once, builds the five
+platform binaries with `main.version` set to the tag without its `v`, and
+publishes the archives, `checksums.txt`, and `scripts/install.sh` as a GitHub
+release. A job then installs the release with its `install.sh` on Linux
+x86_64, Linux arm64, and macOS and checks `--version`.
+
+- A tag with a suffix, such as `v0.2.0-rc1`, publishes a pre-release, which
+  `releases/latest` and therefore the install command skip. Test a release
+  this way before tagging the final version.
+- The install command fetches `install.sh` from the latest release, so
+  installer changes reach users only with a release.
+- To withdraw a broken release, delete the release and its tag on GitHub;
+  `releases/latest` then refers to the previous release.
+- CI runs `goreleaser check` and a snapshot release on every pull request.
+  To run them locally, install [GoReleaser](https://goreleaser.com) and run
+  `goreleaser release --snapshot --clean --skip=publish`; the archives land in
+  `dist/`.
+
+`scripts/install_test.go` tests the installer against a fake release server,
+with `EXASOL_LAUNCHER_UI_DOWNLOAD_URL` pointing at it and a fake `uname`.
 
 ## Adding a feature
 

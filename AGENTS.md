@@ -96,7 +96,8 @@ deploy, destroy, and remove (`add-deployment-settings`); the Sidecars and MCP
 server pages (`add-sidecar-management`); the Script languages page
 (`add-script-languages`); the Diagnostics page (`add-diagnostics`); the SQL
 page with its editor, schema browser, results, and history (`add-sql-editor`);
-and the Import data page for Parquet files (`add-parquet-import`).
+the Import data page for Parquet files (`add-parquet-import`); and
+releases with the one-command installer and `--version` (`add-release`).
 
 The canvas already draws every remaining screen. Implement these as separate
 OpenSpec changes, one per session, in this order (the canvas artboard names in

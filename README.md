@@ -44,13 +44,42 @@ Because it acts with the deployment's administrative credentials, the server:
 - rejects requests from other hosts and origins, and
 - never sends the database password to the browser or writes it to logs.
 
-## Usage
+## Installation
 
-Install the [`exasol` launcher](https://github.com/exasol/exasol-personal) and
-put it on `PATH`, then build Exasol Launcher UI (see [Setup](#setup)) and run:
+Install the [`exasol` launcher](https://github.com/exasol/exasol-personal)
+first, then install Exasol Launcher UI on macOS or Linux with:
 
 ```shell
-bin/exasol-launcher-ui --open
+curl -fsSL https://github.com/juergen-albertsen-exasol/exasol-launcher-ui/releases/latest/download/install.sh | sh
+```
+
+The installer downloads the latest release for your platform, verifies its
+checksum, and installs `exasol-launcher-ui` into `~/.local/bin`. Run the same
+command again to upgrade. To install a particular version or into another
+directory, set these variables for `sh`:
+
+```shell
+curl -fsSL https://github.com/juergen-albertsen-exasol/exasol-launcher-ui/releases/latest/download/install.sh \
+  | EXASOL_LAUNCHER_UI_VERSION=0.1.0 EXASOL_LAUNCHER_UI_INSTALL_DIR=/opt/tools/bin sh
+```
+
+On Windows, download `exasol-launcher-ui_windows_x86_64.zip` from the
+[releases page](https://github.com/juergen-albertsen-exasol/exasol-launcher-ui/releases)
+and put `exasol-launcher-ui.exe` on `PATH`.
+
+The binaries are not signed. An archive downloaded with a browser on macOS is
+quarantined; clear the flag before running the binary:
+
+```shell
+xattr -d com.apple.quarantine exasol-launcher-ui
+```
+
+## Usage
+
+With the launcher on `PATH`, run:
+
+```shell
+exasol-launcher-ui --open
 ```
 
 The command prints an access URL such as `http://127.0.0.1:5180/?token=...`,
@@ -64,10 +93,11 @@ newly printed URL.
 | `--deployment <name>` | Make the access URL open this deployment's overview instead of the tiles. |
 | `--exasol <path>` | Run this launcher executable instead of `exasol` from `PATH`. |
 | `--web-dir <dir>` | Serve the web application from this directory instead of the embedded build. |
+| `--version` | Print the version and exit. |
 
 ## Setup
 
-Building requires Go (see `go.mod`), Node.js (see `web/.nvmrc`), and
+To build from source instead of installing a release, you need Go (see `go.mod`), Node.js (see `web/.nvmrc`), and
 [Task](https://taskfile.dev).
 
 The web application depends on `@exasol/ui-common` from GitHub Packages, which
@@ -87,13 +117,16 @@ Then build:
 task build
 ```
 
+`task build` writes `bin/exasol-launcher-ui`, which reports its version as
+`dev`.
+
 ## Development
 
 | Command | Effect |
 | --- | --- |
 | `task build` | Build the web application and `bin/exasol-launcher-ui`, which embeds it. |
 | `task test` | Run the Go and web application unit tests. |
-| `task lint` | Run the Go and web application linters. |
+| `task lint` | Run the Go and web application linters and `shellcheck`. |
 | `task dev -- <flags>` | Rebuild the web application on change and serve it from disk. |
 
 `task dev` runs `ng build --watch` next to the server started with `--web-dir`,
@@ -103,6 +136,9 @@ so the server's token flow stays in place; reload the browser after a rebuild.
 which skips when none is ready; `go test -short ./...` always skips it.
 `go test -tags integration ./...` adds the SQL and import tests against a local
 deployment.
+
+Maintainers release by pushing a version tag; see
+[Releases](docs/architecture.md#releases).
 
 ## Documentation
 

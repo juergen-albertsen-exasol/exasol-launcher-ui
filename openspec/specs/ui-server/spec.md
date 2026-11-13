@@ -3,7 +3,6 @@
 ## Purpose
 
 Start Exasol Launcher UI as a loopback-only server that only the browser holding its session token can use.
-
 ## Requirements
 ### Requirement: The command starts a loopback web server
 
@@ -82,4 +81,22 @@ not `127.0.0.1:<port>` or `localhost:<port>`, and to any request carrying an
 - **WHEN** a request with a valid session cookie carries
   `Origin: https://attacker.example`
 - **THEN** the server responds with status 403
+
+### Requirement: The command reports its version
+
+`exasol-launcher-ui --version` SHALL print `exasol-launcher-ui <version>` and
+exit with status 0 without starting the server. Released builds SHALL report
+their release version without the leading `v`; builds from source without a
+release version SHALL report `dev`.
+
+#### Scenario: A released build reports its version
+
+- **WHEN** the user runs `exasol-launcher-ui --version` with the binary of
+  release `v0.1.0`
+- **THEN** it prints `exasol-launcher-ui 0.1.0` and exits with status 0
+
+#### Scenario: A source build reports dev
+
+- **WHEN** the user runs `bin/exasol-launcher-ui --version` after `task build`
+- **THEN** it prints `exasol-launcher-ui dev` and exits with status 0
 
