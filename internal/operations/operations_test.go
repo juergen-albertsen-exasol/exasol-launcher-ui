@@ -289,7 +289,8 @@ func TestSidecarKindsRunTheirLauncherCommands(t *testing.T) {
 
 			manager := newManager(t, fake, nil)
 
-			started, err := manager.StartOnSidecar(defaultDeployment, kind, "mcp", "")
+			started, err := manager.StartWith(defaultDeployment, kind,
+				operations.Parameters{Sidecar: "mcp"}, "")
 			require.NoError(t, err)
 			assert.Equal(t, "mcp", started.Sidecar)
 
@@ -297,6 +298,69 @@ func TestSidecarKindsRunTheirLauncherCommands(t *testing.T) {
 
 			assert.Equal(t, operations.StatusSucceeded, snapshot.Status, snapshot.Error)
 			assert.Equal(t, "mcp", snapshot.Sidecar)
+		})
+	}
+}
+
+func TestScriptLanguageKindsRunTheirLauncherCommands(t *testing.T) {
+	t.Parallel()
+
+	custom := operations.Parameters{
+		ScriptLanguage: "MYPY3", Language: "python", Source: "/tmp/my python.tar.gz",
+	}
+	customFlags := []string{"--alias=MYPY3", "--language=python", "--source=/tmp/my python.tar.gz"}
+	cases := []struct {
+		name    string
+		kind    operations.Kind
+		params  operations.Parameters
+		command []string
+	}{
+		{
+			"install", operations.KindInstallScriptLanguage,
+			operations.Parameters{ScriptLanguage: "PYTHON3"},
+			[]string{"slc", "install", "PYTHON3", "--auto-approve"},
+		},
+		{
+			"update", operations.KindUpdateScriptLanguage,
+			operations.Parameters{ScriptLanguage: "PYTHON3"},
+			[]string{"slc", "update", "PYTHON3", "--auto-approve"},
+		},
+		{
+			"remove without restart", operations.KindRemoveScriptLanguage,
+			operations.Parameters{ScriptLanguage: "JAVA", NoRestart: true},
+			[]string{"slc", "remove", "JAVA", "--no-restart"},
+		},
+		{
+			"install custom", operations.KindInstallCustomScriptLanguage, custom,
+			slices.Concat([]string{"slc", "custom", "install"}, customFlags,
+				[]string{"--auto-approve"}),
+		},
+		{
+			"update custom", operations.KindUpdateCustomScriptLanguage, custom,
+			slices.Concat([]string{"slc", "custom", "update"}, customFlags,
+				[]string{"--auto-approve"}),
+		},
+	}
+
+	for _, scenario := range cases {
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+
+			fake := launchertest.NewFake(t)
+			args := slices.Concat(scenario.command,
+				[]string{"--deployment-dir", defaultDeployment.Path})
+			fake.RespondWithProgress("Pulling the image\n", "", args...)
+
+			manager := newManager(t, fake, nil)
+
+			started, err := manager.StartWith(defaultDeployment, scenario.kind, scenario.params, "")
+			require.NoError(t, err)
+			assert.Equal(t, scenario.params.ScriptLanguage, started.ScriptLanguage)
+
+			snapshot, lines := waitUntilFinished(t, manager, started.ID)
+
+			assert.Equal(t, operations.StatusSucceeded, snapshot.Status, snapshot.Error)
+			assert.Equal(t, []string{"Pulling the image"}, lines)
 		})
 	}
 }

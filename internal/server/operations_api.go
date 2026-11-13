@@ -18,29 +18,31 @@ type operationResult struct {
 }
 
 type operationView struct {
-	ID         string           `json:"id"`
-	Deployment string           `json:"deployment"`
-	Kind       operations.Kind  `json:"kind"`
-	Sidecar    string           `json:"sidecar,omitempty"`
-	Status     string           `json:"status"`
-	StartedAt  time.Time        `json:"started_at"`
-	FinishedAt *time.Time       `json:"finished_at,omitempty"`
-	Result     *operationResult `json:"result,omitempty"`
-	Error      string           `json:"error,omitempty"`
-	Lines      []string         `json:"lines,omitempty"`
+	ID             string           `json:"id"`
+	Deployment     string           `json:"deployment"`
+	Kind           operations.Kind  `json:"kind"`
+	Sidecar        string           `json:"sidecar,omitempty"`
+	ScriptLanguage string           `json:"script_language,omitempty"`
+	Status         string           `json:"status"`
+	StartedAt      time.Time        `json:"started_at"`
+	FinishedAt     *time.Time       `json:"finished_at,omitempty"`
+	Result         *operationResult `json:"result,omitempty"`
+	Error          string           `json:"error,omitempty"`
+	Lines          []string         `json:"lines,omitempty"`
 }
 
 func viewOf(snapshot operations.Snapshot, lines []string) operationView {
 	view := operationView{
-		ID:         snapshot.ID,
-		Deployment: snapshot.Deployment,
-		Kind:       snapshot.Kind,
-		Sidecar:    snapshot.Sidecar,
-		Status:     string(snapshot.Status),
-		StartedAt:  snapshot.StartedAt,
-		FinishedAt: snapshot.FinishedAt,
-		Error:      snapshot.Error,
-		Lines:      lines,
+		ID:             snapshot.ID,
+		Deployment:     snapshot.Deployment,
+		Kind:           snapshot.Kind,
+		Sidecar:        snapshot.Sidecar,
+		ScriptLanguage: snapshot.ScriptLanguage,
+		Status:         string(snapshot.Status),
+		StartedAt:      snapshot.StartedAt,
+		FinishedAt:     snapshot.FinishedAt,
+		Error:          snapshot.Error,
+		Lines:          lines,
 	}
 
 	if snapshot.Result != nil {
@@ -101,21 +103,20 @@ func (a *api) runOperation(
 		return
 	}
 
-	a.runOperationOn(response, deployment, kind, "")
+	a.runOperationOn(response, deployment, kind, operations.Parameters{})
 }
 
-// runOperationOn runs kind on the deployment, on its named sidecar when
-// sidecar is set.
+// runOperationOn runs kind with params on the deployment.
 func (a *api) runOperationOn(
 	response http.ResponseWriter,
 	deployment launcher.Deployment,
 	kind operations.Kind,
-	sidecar string,
+	params operations.Parameters,
 ) {
 	// The password is only used to withhold it from the progress output.
 	secret, _ := database.ReadPassword(deployment.Path)
 
-	snapshot, err := a.operations.StartOnSidecar(deployment, kind, sidecar, secret)
+	snapshot, err := a.operations.StartWith(deployment, kind, params, secret)
 	if errors.Is(err, operations.ErrBusy) {
 		writeProblem(response, http.StatusConflict,
 			"An operation already runs on deployment "+deployment.Name+".")

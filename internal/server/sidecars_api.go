@@ -187,7 +187,8 @@ func (a *api) enableSidecar(response http.ResponseWriter, request *http.Request)
 		return
 	}
 
-	a.runOperationOn(response, deployment, operations.KindEnableSidecar, sidecar)
+	a.runOperationOn(response, deployment, operations.KindEnableSidecar,
+		operations.Parameters{Sidecar: sidecar})
 }
 
 func (a *api) disableSidecar(response http.ResponseWriter, request *http.Request) {
@@ -207,7 +208,7 @@ func (a *api) disableSidecar(response http.ResponseWriter, request *http.Request
 		kind = operations.KindRemoveSidecar
 	}
 
-	a.runOperationOn(response, deployment, kind, sidecar)
+	a.runOperationOn(response, deployment, kind, operations.Parameters{Sidecar: sidecar})
 }
 
 func (a *api) mcpClients(

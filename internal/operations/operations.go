@@ -27,15 +27,36 @@ const (
 	KindEnableSidecar    Kind = "enable_sidecar"
 	KindDisableSidecar   Kind = "disable_sidecar"
 	KindRemoveSidecar    Kind = "remove_sidecar"
+
+	KindInstallScriptLanguage       Kind = "install_script_language"
+	KindUpdateScriptLanguage        Kind = "update_script_language"
+	KindRemoveScriptLanguage        Kind = "remove_script_language"
+	KindInstallCustomScriptLanguage Kind = "install_custom_script_language"
+	KindUpdateCustomScriptLanguage  Kind = "update_custom_script_language"
 )
 
-// command returns the launcher arguments that run kind on sidecar, without
+const approve = "--auto-approve"
+
+// Parameters say what an operation acts on besides its deployment.
+type Parameters struct {
+	// Sidecar names the sidecar of the sidecar kinds.
+	Sidecar string
+	// ScriptLanguage is the container alias of the script language kinds.
+	ScriptLanguage string
+	// Language and Source describe a custom script language container.
+	Language string
+	Source   string
+	// NoRestart makes a script language change apply on the next start
+	// instead of restarting the database now.
+	NoRestart bool
+}
+
+// command returns the launcher arguments that run kind with params, without
 // the deployment directory, and whether the command prints a lifecycle result.
-func (k Kind) command(sidecar string) ([]string, bool) {
-	const (
-		approve        = "--auto-approve"
-		sidecarCommand = "sidecar"
-	)
+func (k Kind) command(params Parameters) ([]string, bool) {
+	const sidecarCommand = "sidecar"
+
+	sidecar := params.Sidecar
 
 	switch k {
 	case KindStart, KindStop:
@@ -54,9 +75,43 @@ func (k Kind) command(sidecar string) ([]string, bool) {
 		return []string{sidecarCommand, "disable", sidecar}, false
 	case KindRemoveSidecar:
 		return []string{sidecarCommand, "disable", sidecar, "--remove"}, false
+	case KindInstallScriptLanguage, KindUpdateScriptLanguage, KindRemoveScriptLanguage,
+		KindInstallCustomScriptLanguage, KindUpdateCustomScriptLanguage:
+		return k.scriptLanguageCommand(params), false
 	default:
 		return []string{string(k)}, false
 	}
+}
+
+// scriptLanguageActions holds the `exasol slc` subcommands of the script
+// language kinds.
+var scriptLanguageActions = map[Kind][]string{
+	KindInstallScriptLanguage:       {"install"},
+	KindUpdateScriptLanguage:        {"update"},
+	KindRemoveScriptLanguage:        {"remove"},
+	KindInstallCustomScriptLanguage: {"custom", "install"},
+	KindUpdateCustomScriptLanguage:  {"custom", "update"},
+}
+
+// scriptLanguageCommand passes custom container values as --flag=value, so
+// that no value is taken for a flag.
+func (k Kind) scriptLanguageCommand(params Parameters) []string {
+	args := append([]string{"slc"}, scriptLanguageActions[k]...)
+
+	if k == KindInstallCustomScriptLanguage || k == KindUpdateCustomScriptLanguage {
+		args = append(args,
+			"--alias="+params.ScriptLanguage,
+			"--language="+params.Language,
+			"--source="+params.Source)
+	} else {
+		args = append(args, params.ScriptLanguage)
+	}
+
+	if params.NoRestart {
+		return append(args, "--no-restart")
+	}
+
+	return append(args, approve)
 }
 
 // Status is an operation's progress.
@@ -82,13 +137,15 @@ type Snapshot struct {
 	ID         string
 	Deployment string
 	Kind       Kind
-	Sidecar    string
-	Status     Status
-	StartedAt  time.Time
-	FinishedAt *time.Time
-	Result     *launcher.LifecycleResult
-	Error      string
-	LineCount  int
+	// Sidecar and ScriptLanguage name what the operation acts on, if any.
+	Sidecar        string
+	ScriptLanguage string
+	Status         Status
+	StartedAt      time.Time
+	FinishedAt     *time.Time
+	Result         *launcher.LifecycleResult
+	Error          string
+	LineCount      int
 }
 
 // Streamer runs a launcher command while streaming its progress.
@@ -139,15 +196,15 @@ func (m *Manager) Start(
 	kind Kind,
 	secret string,
 ) (Snapshot, error) {
-	return m.StartOnSidecar(deployment, kind, "", secret)
+	return m.StartWith(deployment, kind, Parameters{}, secret)
 }
 
-// StartOnSidecar runs kind on the named sidecar of the deployment in the
-// background, like Start.
-func (m *Manager) StartOnSidecar(
+// StartWith runs kind with params on the deployment in the background, like
+// Start.
+func (m *Manager) StartWith(
 	deployment launcher.Deployment,
 	kind Kind,
-	sidecar string,
+	params Parameters,
 	secret string,
 ) (Snapshot, error) {
 	m.mu.Lock()
@@ -159,12 +216,13 @@ func (m *Manager) StartOnSidecar(
 
 	current := &operation{
 		snapshot: Snapshot{
-			ID:         rand.Text(),
-			Deployment: deployment.Name,
-			Kind:       kind,
-			Sidecar:    sidecar,
-			Status:     StatusRunning,
-			StartedAt:  m.now(),
+			ID:             rand.Text(),
+			Deployment:     deployment.Name,
+			Kind:           kind,
+			Sidecar:        params.Sidecar,
+			ScriptLanguage: params.ScriptLanguage,
+			Status:         StatusRunning,
+			StartedAt:      m.now(),
 		},
 		secret: secret,
 	}
@@ -172,7 +230,7 @@ func (m *Manager) StartOnSidecar(
 	m.order = append(m.order, current.snapshot.ID)
 	m.running[deployment.Name] = current.snapshot.ID
 
-	args, reportsResult := kind.command(sidecar)
+	args, reportsResult := kind.command(params)
 	go m.run(current, reportsResult, append(args, "--deployment-dir", deployment.Path)...)
 
 	return current.snapshot, nil
