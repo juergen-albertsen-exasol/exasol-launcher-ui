@@ -1,0 +1,63 @@
+@if (dataImport(); as current) { @if (current.status !== status.SUCCEEDED) {
+<section class="import-run__panel" aria-label="Import">
+  <div class="import-run__progress" role="status">
+    <div class="import-run__progress-head">
+      <span class="import-run__title"
+        >Importing into <span class="import-run__mono">{{ current.schema }}.{{ current.table }}</span></span
+      >
+      <span class="import-run__meta import-run__elapsed">{{ elapsed() }}</span>
+    </div>
+    <span class="import-run__bar" aria-hidden="true"><span [style.width.%]="progress()"></span></span>
+    <ul class="import-run__steps">
+      <li class="import-run__step">
+        @if (tableCreated()) {
+        <i class="fa-solid fa-check import-run__step-icon import-run__step-icon--done" aria-hidden="true"></i>
+        {{ tableLabel() }} } @else {
+        <i class="fa-solid fa-spinner fa-spin import-run__step-icon" aria-hidden="true"></i>
+        Creating the table }
+      </li>
+      @for (file of current.files; track $index) {
+      <li class="import-run__step import-run__file">
+        <i [class]="stepIcon(file.status)" aria-hidden="true"></i>
+        <span class="import-run__file-name">{{ file.name }}</span>
+        <span class="import-run__meta import-run__step-meta">{{ fileProgress(file) }}</span>
+      </li>
+      }
+    </ul>
+  </div>
+  <div class="import-run__actions">
+    <p class="import-run__hint">
+      You can leave this page; the import keeps running. Cancelling rolls it back, so no table is left behind.
+    </p>
+    <button class="import-run__cancel" type="button" (click)="cancelImport.emit()">Cancel import</button>
+  </div>
+  <div class="import-run__box" data-label="SQL">
+    <pre class="import-run__sql">{{ current.sql }}</pre>
+  </div>
+</section>
+} @else {
+<section class="import-run__panel" aria-label="Import">
+  <div class="import-run__note import-run__note--ok import-run__done" role="status">
+    <i class="fa-solid fa-circle-check import-run__done-icon" aria-hidden="true"></i>
+    <span class="import-run__done-text">
+      <strong class="import-run__done-title"
+        ><span class="import-run__mono">{{ current.schema }}.{{ current.table }}</span> has
+        {{ count(current.rows ?? 0) }} rows</strong
+      >
+      <span class="import-run__hint"
+        >Imported from {{ current.files.length }} {{ current.files.length === 1 ? 'file' : 'files' }} in
+        {{ seconds(current.seconds) }}</span
+      >
+    </span>
+  </div>
+  <div class="import-run__done-actions">
+    <exa-button class="import-run__open-sql" (clickButton)="query.emit()">
+      <i class="fa-solid fa-terminal import-run__button-icon" aria-hidden="true"></i>Open in the SQL editor
+    </exa-button>
+    <button class="import-run__more" type="button" (click)="importMore.emit()">Import more</button>
+    <span class="import-run__hint"
+      >Opens the editor with <code class="import-run__mono">{{ queryOf(current) }}</code></span
+    >
+  </div>
+</section>
+} }

@@ -4,7 +4,8 @@ import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Router, provideRouter } from '@angular/router';
 import { Store, provideStore } from '@ngxs/store';
-import { Subject, firstValueFrom } from 'rxjs';
+import { Subject, firstValueFrom, of } from 'rxjs';
+import { DataImport } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 import { OperationEventsService } from '@exa/services/local-api/operation-events.service';
 import { loadText, saveText } from '@exa/sql/storage';
@@ -322,6 +323,126 @@ describe('PageImportComponent', () => {
       await refresh();
 
       expect(root.query(By.css('.import__drop'))).toBeTruthy();
+    });
+  });
+
+  describe('import', () => {
+    const running = dataImport({
+      sql: 'CREATE SCHEMA IF NOT EXISTS "DATA";\nCOMMIT;',
+    });
+    const succeeded = dataImport({
+      status: 'succeeded',
+      rows: 5_972_150,
+      seconds: 13.4,
+      files: [
+        { name: 'yellow_tripdata_2024-01.parquet', status: 'succeeded', rows: 2_964_624 },
+        { name: 'yellow_tripdata_2024-02.parquet', status: 'succeeded', rows: 3_007_526 },
+      ],
+    });
+
+    /** Starts an import whose polls return updates; with them, timers are fake until the poll. */
+    const startImport = async (...updates: DataImport[]) => {
+      await render();
+      api.startImport.mockReturnValue(of(running));
+      api.getImport.mockImplementation(() => of(updates.shift() ?? running));
+      await drop(parquet('yellow_tripdata_2024-01.parquet'), parquet('yellow_tripdata_2024-02.parquet'));
+      if (updates.length > 0) jest.useFakeTimers();
+      button('.import__start-import').click();
+      if (updates.length > 0) component.detectChanges();
+      else await refresh();
+    };
+
+    const poll = async () => {
+      jest.advanceTimersByTime(1000);
+      jest.useRealTimers();
+      await refresh();
+    };
+
+    afterEach(() => jest.useRealTimers());
+
+    it('follows a running import with its files and SQL', async () => {
+      await startImport();
+
+      expect(text('.import-run__title')).toBe('Importing into DATA.YELLOW_TRIPDATA_2024');
+      expect(text('.import-run__elapsed')).toBe('12 s');
+      expect(text('.import-run__step')).toBe('Created the table with 3 columns');
+      expect(
+        root
+          .queryAll(By.css('.import-run__file'))
+          .map(step => [text('.import-run__file-name', step), text('.import-run__step-meta', step)])
+      ).toEqual([
+        ['yellow_tripdata_2024-01.parquet', '2,964,624 rows'],
+        ['yellow_tripdata_2024-02.parquet', 'importing'],
+      ]);
+      expect(text('.import-run__sql')).toBe('CREATE SCHEMA IF NOT EXISTS "DATA"; COMMIT;');
+      expect(root.query(By.css('.import__recent'))).toBeNull();
+    });
+
+    it('polls the import every second until it succeeds', async () => {
+      await startImport(succeeded);
+
+      await poll();
+
+      expect(api.getImport).toHaveBeenCalledWith('default', 'import-1');
+      expect(text('.import-run__done-title')).toBe('DATA.YELLOW_TRIPDATA_2024 has 5,972,150 rows');
+      expect(text('.import-run__done .import-run__hint')).toBe('Imported from 2 files in 13.4 s');
+      expect(root.queryAll(By.css('.import__entry'))).toHaveLength(1);
+    });
+
+    it('opens the SQL editor with a query on the new table', async () => {
+      await startImport(succeeded);
+      await poll();
+      saveText('default', 'SELECT 1;');
+      const navigate = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      button('.import-run__open-sql').click();
+
+      expect(loadText('default')).toBe('SELECT 1;\nSELECT * FROM "DATA"."YELLOW_TRIPDATA_2024" LIMIT 100;');
+      expect(navigate).toHaveBeenCalledWith(['/', 'deployments', 'default', 'sql']);
+    });
+
+    it('returns to the drop area to import more', async () => {
+      await startImport(succeeded);
+      await poll();
+
+      button('.import-run__more').click();
+      await refresh();
+
+      expect(root.query(By.css('.import__drop'))).toBeTruthy();
+    });
+
+    it('returns to the suggestion with the database’s message when the import fails', async () => {
+      await startImport(dataImport({ status: 'failed', message: 'ETL-3076: value out of range' }));
+
+      await poll();
+
+      expect(text('.import__import-error')).toBe('ETL-3076: value out of range');
+      expect((root.query(By.css('#import-table')).nativeElement as HTMLInputElement).value).toBe(
+        'YELLOW_TRIPDATA_2024'
+      );
+    });
+
+    it('cancels the import', async () => {
+      await startImport();
+      api.getImport.mockReturnValue(of(dataImport({ status: 'cancelled' })));
+
+      button('.import-run__cancel').click();
+      await refresh();
+
+      expect(api.cancelImport).toHaveBeenCalledWith('default', 'import-1');
+      expect(root.query(By.css('.import__start-import'))).toBeTruthy();
+    });
+
+    it('shows the running import after leaving and returning', async () => {
+      await startImport();
+
+      component.destroy();
+      component = TestBed.createComponent(PageImportComponent);
+      component.componentRef.setInput('name', 'default');
+      root = component.debugElement;
+      await refresh();
+
+      expect(text('.import-run__title')).toBe('Importing into DATA.YELLOW_TRIPDATA_2024');
     });
   });
 });

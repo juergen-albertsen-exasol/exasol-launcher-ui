@@ -1,7 +1,8 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, NgZone, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngxs/store';
 import { ExaButtonComponent } from '@exasol/ui-common';
+import { ImportRunComponent } from '@exa/components/import-run/import-run.component';
 import { DeploymentPage, deploymentPath } from '@exa/routes';
 import {
   DEPLOYMENT_READY_STATUS,
@@ -18,10 +19,12 @@ import { LoadDeploymentsAction, SelectDeploymentAction } from '@exa/store/deploy
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
 import { formatBytes, formatCount, formatSeconds, queryStatement } from '@exa/store/imports/import-labels';
 import {
+  CancelImportAction,
   ChooseFilesAgainAction,
   EditImportColumnAction,
   EditImportTableAction,
   LoadImportsAction,
+  RefreshImportAction,
   ResetImportAction,
   StartImportAction,
   UploadFilesAction,
@@ -32,6 +35,7 @@ import { RunOperationAction } from '@exa/store/operations/operations.actions';
 import { OperationsState } from '@exa/store/operations/operations.state';
 
 const PERCENT = 100;
+const POLL_MS = 1000;
 /** The columns shown until the user asks for all. */
 const FIRST_COLUMNS = 10;
 
@@ -51,11 +55,12 @@ const TYPES = [
   selector: 'exa-page-import',
   templateUrl: './page-import.component.html',
   styleUrls: ['./page-import.component.scss'],
-  imports: [ExaButtonComponent],
+  imports: [ExaButtonComponent, ImportRunComponent],
 })
 export class PageImportComponent {
   private readonly store = inject(Store);
   private readonly router = inject(Router);
+  private readonly zone = inject(NgZone);
   private readonly pages = this.store.selectSignal(ImportsState.pages);
   private readonly summary = this.store.selectSignal(DeploymentsState.selectedSummary);
   private readonly operations = this.store.selectSignal(OperationsState.operations);
@@ -108,6 +113,11 @@ export class PageImportComponent {
       });
     });
     this.refreshWhenOperationEnds();
+    this.pollWhileRunning();
+  }
+
+  cancel(): void {
+    this.store.dispatch(new CancelImportAction(this.name()));
   }
 
   start(): void {
@@ -164,6 +174,18 @@ export class PageImportComponent {
 
   private upload(files: File[]): void {
     if (files.length > 0 && this.canChoose()) this.store.dispatch(new UploadFilesAction(this.name(), files));
+  }
+
+  // The timer runs outside Angular's zone, so pages can still become stable.
+  private pollWhileRunning(): void {
+    effect(onCleanup => {
+      const name = this.name();
+      if (this.page().phase !== 'running') return;
+      const timer = this.zone.runOutsideAngular(() =>
+        setInterval(() => this.zone.run(() => this.store.dispatch(new RefreshImportAction(name))), POLL_MS)
+      );
+      onCleanup(() => clearInterval(timer));
+    });
   }
 
   private refreshWhenOperationEnds(): void {

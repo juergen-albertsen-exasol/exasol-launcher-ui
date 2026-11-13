@@ -1,0 +1,170 @@
+@import 'colors';
+@import 'panels';
+
+.import-run {
+  &__panel {
+    @include detail-panel;
+  }
+
+  &__box {
+    @include info-box;
+    background-color: var(--background-secondary);
+  }
+
+  &__bar {
+    display: block;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--frame-color);
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: 6px;
+      background: var(--primary-accent);
+    }
+  }
+
+  &__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    font-size: 0.88rem;
+    list-style: none;
+  }
+
+  &__file-name,
+  &__mono {
+    font-family: var(--font-mono);
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__meta {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.81rem;
+  }
+
+  &__hint {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__note {
+    display: flex;
+    gap: 10px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background: var(--background-primary);
+  }
+
+  &__button-icon {
+    margin-right: 8px;
+  }
+
+  &__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__progress-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__title {
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  &__step {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__step-icon {
+    width: 16px;
+    color: var(--text-secondary);
+    text-align: center;
+
+    &--done {
+      color: var(--primary-accent);
+    }
+
+    &--failed {
+      color: $red;
+    }
+  }
+
+  &__step-meta {
+    margin-left: auto;
+  }
+
+  &__cancel {
+    @include outline-button($red);
+  }
+
+  &__more {
+    @include outline-button;
+  }
+
+  &__sql {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background: var(--background-primary);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  &__done {
+    align-items: center;
+    padding: 14px 16px;
+  }
+
+  &__done-icon {
+    color: var(--primary-accent);
+    font-size: 22px;
+  }
+
+  &__done-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__done-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  &__done-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+}

@@ -197,6 +197,14 @@
       </exa-button>
     </div>
   </section>
+  } @if ((page().phase === 'running' || page().phase === 'done') && page().current; as current) {
+  <exa-import-run
+    [dataImport]="current"
+    [columns]="page().draft?.columns?.length"
+    (cancelImport)="cancel()"
+    (query)="query(current)"
+    (importMore)="chooseAgain()"
+  ></exa-import-run>
   } @if (page().phase !== 'suggestion' && page().phase !== 'running') {
   <div class="import__box" data-label="Recent imports">
     @if (page().recent.length === 0) {
