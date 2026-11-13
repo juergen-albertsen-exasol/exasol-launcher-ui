@@ -94,11 +94,9 @@ integration, and the deployment tiles and overview (`add-app-scaffold`,
 activity indicator (`add-operations`); the Settings page with configuration,
 deploy, destroy, and remove (`add-deployment-settings`); the Sidecars and MCP
 server pages (`add-sidecar-management`); the Script languages page
-(`add-script-languages`); the Diagnostics page (`add-diagnostics`); and the SQL
-page with its editor, schema browser, results, and history (`add-sql-editor`).
-
-Implemented, not yet archived: the Import data page for Parquet files
-(`add-parquet-import`).
+(`add-script-languages`); the Diagnostics page (`add-diagnostics`); the SQL
+page with its editor, schema browser, results, and history (`add-sql-editor`);
+and the Import data page for Parquet files (`add-parquet-import`).
 
 The canvas already draws every remaining screen. Implement these as separate
 OpenSpec changes, one per session, in this order (the canvas artboard names in
