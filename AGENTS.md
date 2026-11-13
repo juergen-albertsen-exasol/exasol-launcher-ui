@@ -93,27 +93,25 @@ overview (`add-app-scaffold`, `refine-deployment-pages`), long-running
 operations with Start, Stop, and the activity indicator (`add-operations`),
 the Settings page with configuration, deploy, destroy, and remove
 (`add-deployment-settings`), the Sidecars and MCP server pages
-(`add-sidecar-management`), and the Script languages page
-(`add-script-languages`). Long launcher commands go through
-`internal/operations`; later changes reuse it, passing what an operation acts
-on as `operations.Parameters` (`OperationParameters` in the browser), and
-operations on a part of a deployment name it, as sidecar and script language
-operations do. Each deployment page has its own route segment (`overview`,
-`sidecars`, `mcp`, `script-languages`, `settings`) and drawer entry in
-`routes.ts`. Short launcher failures arrive as `LauncherError`, so
-endpoints can answer 409 with the launcher's message.
+(`add-sidecar-management`), the Script languages page
+(`add-script-languages`), and the Diagnostics page (`add-diagnostics`). Long
+launcher commands go through `internal/operations`; later changes reuse it,
+passing what an operation acts on as `operations.Parameters`
+(`OperationParameters` in the browser), and operations on a part of a
+deployment name it, as sidecar and script language operations do. Each
+deployment page has its own route segment (`overview`, `sidecars`, `mcp`,
+`script-languages`, `settings`, `diagnostics`) and drawer entry in
+`routes.ts`. Short launcher failures arrive as `LauncherError`, so endpoints
+can answer 409 with the launcher's message.
 
 The canvas already draws every remaining screen. Implement these as separate
 OpenSpec changes, one per session, in this order (the canvas artboard names
 in parentheses):
 
-1. `add-diagnostics`: the Diagnostics page (`Diagnostics`). `diag local`,
-   `diag info` (show and download), guarded `diag unlock`, and copyable
-   `shell host` and `shell container` commands.
-2. `add-deployment-creation`: the New deployment page (`NewDeployment`).
+1. `add-deployment-creation`: the New deployment page (`NewDeployment`).
    `install` and `init` for every preset; test only local deployments, since
    cloud ones take long and cost money.
-3. `add-launcher-tools`: the start page toolbar with Presets, Runtime cache,
+2. `add-launcher-tools`: the start page toolbar with Presets, Runtime cache,
    and Launcher pages (`Main`, `Presets`, `Cache`, `Launcher`).
    `presets list/export`, `cache list/clean/unlock`, `diag cache`, and
    `version --latest`.
