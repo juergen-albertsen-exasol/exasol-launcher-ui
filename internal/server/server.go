@@ -41,6 +41,8 @@ func Serve(ctx context.Context, listener net.Listener, handler http.Handler) err
 	httpServer := &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: readHeaderTimeout,
+		// Requests end with the server, which ends open event streams.
+		BaseContext: func(net.Listener) context.Context { return ctx },
 	}
 
 	serveErr := make(chan error, 1)

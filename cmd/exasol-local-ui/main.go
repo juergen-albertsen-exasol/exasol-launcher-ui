@@ -15,6 +15,7 @@ import (
 
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/opener"
+	"github.com/exasol/exasol-local-ui/internal/operations"
 	"github.com/exasol/exasol-local-ui/internal/server"
 	"github.com/exasol/exasol-local-ui/internal/webapp"
 )
@@ -129,7 +130,9 @@ func serve(ctx context.Context, opts options, env environment) error {
 	handler := server.NewGuard(token, address.Port).
 		Wrap(server.NewHandler(server.Config{
 			Launcher: launcherClient,
-			WebApp:   webApp,
+			Operations: operations.NewManager(
+				ctx, launcherClient, launcherClient.InvalidateListing),
+			WebApp: webApp,
 		}))
 
 	_, _ = fmt.Fprintf(env.stdout, "Exasol Local UI is available at %s\n", accessURL)

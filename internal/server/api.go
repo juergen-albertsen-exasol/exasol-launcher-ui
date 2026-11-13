@@ -7,6 +7,7 @@ import (
 
 	"github.com/exasol/exasol-local-ui/internal/database"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
+	"github.com/exasol/exasol-local-ui/internal/operations"
 )
 
 const (
@@ -47,6 +48,7 @@ type api struct {
 	launcher   *launcher.Client
 	ping       func(ctx context.Context, target database.Target) (time.Duration, error)
 	openFolder func(ctx context.Context, path string) error
+	operations *operations.Manager
 }
 
 func (a *api) register(mux *http.ServeMux) {
@@ -54,6 +56,7 @@ func (a *api) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/deployments/{name}", a.getDeployment)
 	mux.HandleFunc("GET /api/v1/deployments/{name}/health/ping", a.pingDeployment)
 	mux.HandleFunc("POST /api/v1/deployments/{name}/open-folder", a.openDeploymentFolder)
+	a.registerOperations(mux)
 	mux.HandleFunc("/api/", func(response http.ResponseWriter, _ *http.Request) {
 		writeProblem(response, http.StatusNotFound, "The API has no such resource.")
 	})
