@@ -14,8 +14,9 @@ const script = `#!/bin/sh
 dir=$(dirname "$0")
 echo "$*" >> "$dir/calls"
 key=$(printf '%s' "$*" | tr -c 'A-Za-z0-9' '_')
-[ -f "$dir/$key.stdout" ] && cat "$dir/$key.stdout"
 [ -f "$dir/$key.stderr" ] && cat "$dir/$key.stderr" >&2
+while [ -f "$dir/$key.hold" ]; do sleep 0.02; done
+[ -f "$dir/$key.stdout" ] && cat "$dir/$key.stdout"
 [ -f "$dir/$key.exit" ] && exit "$(cat "$dir/$key.exit")"
 [ -f "$dir/$key.stdout" ] || { echo "unexpected command: $*" >&2; exit 64; }
 `
@@ -55,6 +56,31 @@ func (f *Fake) Respond(stdout string, args ...string) {
 
 	f.remove(args, ".exit", ".stderr")
 	writeFile(f.t, f.path(args, ".stdout"), stdout, dataMode)
+}
+
+// RespondWithProgress makes the command given by args print progress to
+// stderr, then stdout, and succeed.
+func (f *Fake) RespondWithProgress(progress, stdout string, args ...string) {
+	f.t.Helper()
+
+	f.remove(args, ".exit")
+	writeFile(f.t, f.path(args, ".stderr"), progress, dataMode)
+	writeFile(f.t, f.path(args, ".stdout"), stdout, dataMode)
+}
+
+// Hold makes the command given by args wait after its progress output until
+// Release is called.
+func (f *Fake) Hold(args ...string) {
+	f.t.Helper()
+
+	writeFile(f.t, f.path(args, ".hold"), "", dataMode)
+}
+
+// Release lets a held command finish.
+func (f *Fake) Release(args ...string) {
+	f.t.Helper()
+
+	f.remove(args, ".hold")
 }
 
 // Fail makes the command given by args print stderr and exit with exitCode.

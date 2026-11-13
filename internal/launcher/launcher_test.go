@@ -183,3 +183,80 @@ func TestDecodeFailuresNameTheCommandAndVersion(t *testing.T) {
 	assert.Contains(t, err.Error(), "deployments list --json")
 	assert.Contains(t, err.Error(), launchertest.Version)
 }
+
+func TestStreamReportsProgressAndDecodesTheResult(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.RespondWithProgress("first\nsecond\n",
+		`{"deploymentState": "stopped", "databaseReady": false}`, "stop", "--json")
+
+	var (
+		lines  []string
+		result launcher.LifecycleResult
+	)
+
+	err := launcher.New(fake.Executable).Stream(t.Context(), func(line string) {
+		lines = append(lines, line)
+	}, &result, "stop", "--json")
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"first", "second"}, lines)
+	assert.Equal(t, launcher.LifecycleResult{DeploymentState: "stopped"}, result)
+}
+
+func TestStreamFailureCarriesTheLastProgressLine(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Fail("working\nError: deployment is locked\n\n", 1, "stop", "--json")
+
+	err := launcher.New(fake.Executable).
+		Stream(t.Context(), func(string) {}, &struct{}{}, "stop", "--json")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Error: deployment is locked")
+}
+
+func TestInvalidatedListingIsReadAgain(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Respond(listing, listArgs...)
+	client := launcher.New(fake.Executable)
+
+	_, err := client.Deployments(t.Context(), false)
+	require.NoError(t, err)
+
+	client.InvalidateListing()
+
+	_, err = client.Deployments(t.Context(), false)
+	require.NoError(t, err)
+	assert.Len(t, fake.Calls(), 2)
+}
+
+func TestStreamMakesJSONLogRecordsReadable(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Fail(`{"time":"2026-11-13T12:16:01+01:00","level":"INFO","msg":"starting deployment"}
+{"time":"2026-11-13T12:16:02+01:00","level":"WARN","msg":"port busy","port":8563}
+plain text
+{"time":"2026-11-13T12:16:03+01:00","level":"ERROR","msg":"start failed"}
+`, 1, "start", "--json")
+
+	var lines []string
+
+	err := launcher.New(fake.Executable).Stream(t.Context(), func(line string) {
+		lines = append(lines, line)
+	}, &struct{}{}, "start", "--json")
+
+	assert.Equal(t, []string{
+		"starting deployment",
+		"WARN port busy port=8563",
+		"plain text",
+		"ERROR start failed",
+	}, lines)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ERROR start failed")
+}

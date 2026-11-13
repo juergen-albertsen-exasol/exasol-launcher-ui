@@ -1,12 +1,14 @@
 package launcher
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,6 +19,9 @@ const (
 	DefaultExecutable = "exasol"
 
 	listingCacheTTL = 10 * time.Second
+
+	scanBufferSize = 64 * 1024
+	maxLineSize    = 1024 * 1024
 )
 
 // Deployment is one entry of `exasol deployments list --json`.
@@ -41,6 +46,13 @@ type Connection struct {
 	Port                       int    `json:"dbPort"`
 	Username                   string `json:"username"`
 	InsecureSkipCertValidation bool   `json:"insecureSkipCertValidation"`
+}
+
+// LifecycleResult is the JSON document `exasol start --json` and
+// `exasol stop --json` print when they finish.
+type LifecycleResult struct {
+	DeploymentState string `json:"deploymentState"`
+	DatabaseReady   bool   `json:"databaseReady"`
 }
 
 // Client runs the launcher's JSON CLI.
@@ -104,6 +116,14 @@ func (c *Client) Deployments(ctx context.Context, refresh bool) ([]Deployment, e
 	return listing, nil
 }
 
+// InvalidateListing makes the next Deployments call ask the launcher again.
+func (c *Client) InvalidateListing() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.listing = nil
+}
+
 // Deployment returns the listed deployment with the given name.
 func (c *Client) Deployment(ctx context.Context, name string) (Deployment, bool, error) {
 	deployments, err := c.Deployments(ctx, false)
@@ -127,6 +147,59 @@ func (c *Client) Info(ctx context.Context, deploymentDir string) (Info, error) {
 	err := c.runJSON(ctx, &info, "info", "--json", "--deployment-dir", deploymentDir)
 
 	return info, err
+}
+
+// Stream runs a long launcher command, calls onLine for each line it writes
+// to stderr, and decodes its stdout as JSON into target. A failed command's
+// error carries the last line it wrote to stderr.
+func (c *Client) Stream(
+	ctx context.Context,
+	onLine func(line string),
+	target any,
+	args ...string,
+) error {
+	command := c.executable + " " + strings.Join(args, " ")
+
+	var stdout bytes.Buffer
+
+	cmd := exec.CommandContext(ctx, c.executable, args...)
+	cmd.Stdout = &stdout
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("cannot read the output of %q: %w", command, err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("cannot run the launcher %q: %w", c.executable, err)
+	}
+
+	lastLine := ""
+	scanner := bufio.NewScanner(stderr)
+	scanner.Buffer(make([]byte, 0, scanBufferSize), maxLineSize)
+
+	for scanner.Scan() {
+		line := readableLogLine(strings.TrimRight(scanner.Text(), "\r"))
+		if strings.TrimSpace(line) != "" {
+			lastLine = line
+		}
+
+		onLine(line)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		if lastLine != "" {
+			return fmt.Errorf("%q failed: %s", command, strings.TrimSpace(lastLine))
+		}
+
+		return fmt.Errorf("%q failed: %w", command, err)
+	}
+
+	if err := json.Unmarshal(stdout.Bytes(), target); err != nil {
+		return fmt.Errorf("cannot decode the output of %q%s: %w", command, c.versionSuffix(), err)
+	}
+
+	return nil
 }
 
 func (c *Client) runJSON(ctx context.Context, target any, args ...string) error {
@@ -155,6 +228,48 @@ func (c *Client) runJSON(ctx context.Context, target any, args ...string) error 
 	}
 
 	return nil
+}
+
+// readableLogLine turns a JSON log record, which the launcher writes when its
+// stderr is no terminal, into "message key=value", prefixed with the level
+// unless it is INFO. Other lines pass unchanged.
+func readableLogLine(line string) string {
+	if !strings.HasPrefix(line, "{") {
+		return line
+	}
+
+	var record map[string]any
+	if json.Unmarshal([]byte(line), &record) != nil {
+		return line
+	}
+
+	message, isText := record["msg"].(string)
+	if !isText {
+		return line
+	}
+
+	parts := []string{}
+
+	if level, hasLevel := record["level"].(string); hasLevel && level != "INFO" {
+		parts = append(parts, level)
+	}
+
+	parts = append(parts, message)
+
+	keys := make([]string, 0, len(record))
+	for key := range record {
+		if key != "time" && key != "level" && key != "msg" {
+			keys = append(keys, key)
+		}
+	}
+
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", key, record[key]))
+	}
+
+	return strings.Join(parts, " ")
 }
 
 func (c *Client) versionSuffix() string {
