@@ -262,4 +262,127 @@
       outline-offset: 2px;
     }
   }
+
+  &__source {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background: var(--background-primary);
+    font-size: 0.88rem;
+  }
+
+  &__other-files {
+    margin-left: auto;
+  }
+
+  &__problem-text {
+    flex: 1;
+  }
+
+  &__alternative {
+    white-space: nowrap;
+  }
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+    gap: 16px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+
+    label {
+      color: var(--text-secondary);
+      font-size: 0.81rem;
+      font-weight: 500;
+    }
+  }
+
+  &__input {
+    height: 36px;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+
+    &--bad {
+      border-color: $red;
+    }
+  }
+
+  &__column-name {
+    width: 30%;
+  }
+
+  &__column-type {
+    width: 26%;
+  }
+
+  &__cell {
+    width: 100%;
+    min-width: 8rem;
+    height: 30px;
+    box-sizing: border-box;
+    padding: 0 8px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.81rem;
+
+    &--changed {
+      border-color: var(--primary-accent);
+      background: var(--primary-accent-lightest2, var(--background-secondary));
+    }
+
+    &--bad {
+      border-color: $red;
+    }
+  }
+
+  &__unsupported {
+    color: $red;
+    font-size: 0.81rem;
+    white-space: nowrap;
+  }
+
+  &__sample {
+    max-width: 16rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__column-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__hint--narrow {
+    max-width: 620px;
+  }
 }

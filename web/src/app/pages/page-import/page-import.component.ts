@@ -6,6 +6,8 @@ import { DeploymentPage, deploymentPath } from '@exa/routes';
 import {
   DEPLOYMENT_READY_STATUS,
   DataImport,
+  ImportColumn,
+  ImportProblemCode,
   ImportStatus,
   Operation,
   OperationKind,
@@ -14,14 +16,36 @@ import {
 import { appendText } from '@exa/sql/storage';
 import { LoadDeploymentsAction, SelectDeploymentAction } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
-import { formatCount, formatSeconds, queryStatement } from '@exa/store/imports/import-labels';
-import { LoadImportsAction, UploadFilesAction } from '@exa/store/imports/imports.actions';
-import { ImportsState, emptyImportPage } from '@exa/store/imports/imports.state';
+import { formatBytes, formatCount, formatSeconds, queryStatement } from '@exa/store/imports/import-labels';
+import {
+  ChooseFilesAgainAction,
+  EditImportColumnAction,
+  EditImportTableAction,
+  LoadImportsAction,
+  ResetImportAction,
+  StartImportAction,
+  UploadFilesAction,
+} from '@exa/store/imports/imports.actions';
+import { ImportsState, canImport, emptyImportPage, openProblems } from '@exa/store/imports/imports.state';
 import { RUNNING_VERB } from '@exa/store/operations/operation-labels';
 import { RunOperationAction } from '@exa/store/operations/operations.actions';
 import { OperationsState } from '@exa/store/operations/operations.state';
 
 const PERCENT = 100;
+/** The columns shown until the user asks for all. */
+const FIRST_COLUMNS = 10;
+
+/** Types the type fields offer; any other Exasol type works too. */
+const TYPES = [
+  'BOOLEAN',
+  'DATE',
+  'DECIMAL(18,0)',
+  'DECIMAL(36,0)',
+  'DOUBLE PRECISION',
+  'TIMESTAMP(3)',
+  'TIMESTAMP(9)',
+  'VARCHAR(2000000) UTF8',
+];
 
 @Component({
   selector: 'exa-page-import',
@@ -47,6 +71,27 @@ export class PageImportComponent {
   readonly canStart = computed(() => !this.operation() && this.summary()?.status === 'stopped');
   readonly canChoose = computed(() => this.ready() && this.page().phase !== 'uploading');
   readonly dragging = signal(false);
+  readonly showAll = signal(false);
+
+  readonly problems = computed(() => openProblems(this.page()));
+  readonly tableTaken = computed(() => this.problems().some(problem => problem.code === ImportProblemCode.TABLE_TAKEN));
+  readonly importable = computed(() => canImport(this.page()));
+  readonly fileNames = computed(() =>
+    this.page()
+      .uploads.map(upload => upload.name)
+      .join(', ')
+  );
+  readonly sourceSummary = computed(() => {
+    const suggestion = this.page().suggestion;
+    if (!suggestion) return '';
+    const { files, bytes } = suggestion.source;
+    return `${files} ${files === 1 ? 'file' : 'files'} · ${formatBytes(bytes)} · ${formatCount(suggestion.rows)} rows`;
+  });
+  readonly shownColumns = computed(() => {
+    const columns = this.page().suggestion?.columns ?? [];
+    return this.showAll() ? columns : columns.slice(0, FIRST_COLUMNS);
+  });
+  readonly types = TYPES;
 
   readonly operationVerb = RUNNING_VERB;
   readonly status = ImportStatus;
@@ -67,6 +112,31 @@ export class PageImportComponent {
 
   start(): void {
     this.store.dispatch(new RunOperationAction(this.name(), OperationKind.START));
+  }
+
+  editTable(table: { schema?: string; table?: string }): void {
+    this.store.dispatch(new EditImportTableAction(this.name(), table));
+  }
+
+  useTable(table: string): void {
+    this.editTable({ table });
+  }
+
+  editColumn(index: number, column: Partial<ImportColumn>): void {
+    this.store.dispatch(new EditImportColumnAction(this.name(), index, column));
+  }
+
+  reset(): void {
+    this.store.dispatch(new ResetImportAction(this.name()));
+  }
+
+  startImport(): void {
+    this.store.dispatch(new StartImportAction(this.name()));
+  }
+
+  chooseAgain(): void {
+    this.showAll.set(false);
+    this.store.dispatch(new ChooseFilesAgainAction(this.name()));
   }
 
   dragOver(event: DragEvent): void {

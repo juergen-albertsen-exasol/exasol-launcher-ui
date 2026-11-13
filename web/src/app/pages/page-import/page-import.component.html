@@ -66,6 +66,137 @@
       computer and deletes them after the import.
     </p>
   </section>
+  } @if (page().phase === 'suggestion' && page().suggestion && page().draft) { @let suggestion = page().suggestion!;
+  @let draft = page().draft!;
+  <section class="import__panel" aria-label="Suggested table">
+    <div class="import__source">
+      <i class="fa-solid fa-file import__muted" aria-hidden="true"></i>
+      <span class="import__file-name">{{ fileNames() }}</span>
+      <span class="import__muted import__source-summary">{{ sourceSummary() }}</span>
+      <button class="import__link import__other-files" type="button" (click)="chooseAgain()">Choose other files</button>
+    </div>
+    @if (page().importError; as error) {
+    <p class="import__note import__note--error import__import-error" role="alert">
+      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+      <span>{{ error }}</span>
+    </p>
+    } @for (problem of problems(); track problem.code) {
+    <div class="import__note import__note--error import__problem" [attr.id]="'import-problem-' + problem.code">
+      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+      <span class="import__problem-text">{{ problem.message }}</span>
+      @if (problem.alternative; as alternative) {
+      <button class="import__link import__alternative" type="button" (click)="useTable(alternative)">
+        Use {{ alternative }}
+      </button>
+      }
+    </div>
+    }
+    <div class="import__fields">
+      <div class="import__field">
+        <label for="import-schema">Schema</label>
+        <input
+          id="import-schema"
+          class="import__input"
+          [class.import__input--bad]="draft.schema.trim() === ''"
+          [value]="draft.schema"
+          (input)="editTable({ schema: $any($event.target).value })"
+        />
+      </div>
+      <div class="import__field">
+        <label for="import-table">Table</label>
+        <input
+          id="import-table"
+          class="import__input"
+          [class.import__input--bad]="tableTaken() || draft.table.trim() === ''"
+          [attr.aria-describedby]="tableTaken() ? 'import-problem-table_taken' : null"
+          [value]="draft.table"
+          (input)="editTable({ table: $any($event.target).value })"
+        />
+      </div>
+    </div>
+    <div class="import__box" data-label="Suggested columns">
+      <div class="import__scroll">
+        <table class="import__table import__columns">
+          <thead>
+            <tr>
+              <th scope="col" class="import__right">#</th>
+              <th scope="col" class="import__column-name">Column</th>
+              <th scope="col" class="import__column-type">Exasol type</th>
+              <th scope="col">Parquet type</th>
+              <th scope="col">Sample</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (column of shownColumns(); track $index; let index = $index) {
+            <tr class="import__column">
+              <td class="import__right import__muted">{{ index + 1 }}</td>
+              <td>
+                <input
+                  class="import__cell import__cell-name"
+                  [class.import__cell--changed]="draft.columns[index].name !== column.name"
+                  [class.import__cell--bad]="draft.columns[index].name.trim() === ''"
+                  [attr.aria-label]="'Name of column ' + (index + 1)"
+                  [value]="draft.columns[index].name"
+                  (input)="editColumn(index, { name: $any($event.target).value })"
+                />
+              </td>
+              <td>
+                @if (column.type === null) {
+                <span class="import__unsupported"
+                  ><i class="fa-solid fa-xmark" aria-hidden="true"></i> Cannot be imported</span
+                >
+                } @else {
+                <input
+                  class="import__cell import__cell-type"
+                  list="import-types"
+                  [class.import__cell--changed]="draft.columns[index].type !== column.type"
+                  [class.import__cell--bad]="draft.columns[index].type.trim() === ''"
+                  [attr.aria-label]="'Type of column ' + (index + 1)"
+                  [value]="draft.columns[index].type"
+                  (input)="editColumn(index, { type: $any($event.target).value })"
+                />
+                }
+              </td>
+              <td class="import__mono">{{ column.parquet_type }}</td>
+              <td class="import__mono import__muted import__sample">{{ column.sample ?? '' }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <datalist id="import-types">
+        @for (type of types; track type) {
+        <option [value]="type"></option>
+        }
+      </datalist>
+      <div class="import__column-actions">
+        @if (suggestion.columns.length > shownColumns().length) {
+        <button class="import__link import__show-all" type="button" (click)="showAll.set(true)">
+          Show all {{ suggestion.columns.length }} columns
+        </button>
+        } @else {
+        <span></span>
+        }
+        <button class="import__link import__reset" type="button" (click)="reset()">
+          <i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i> Reset to the suggestion
+        </button>
+      </div>
+    </div>
+    <div class="import__actions">
+      <p class="import__hint import__hint--narrow">
+        Types follow Exasol's schema inference for Parquet. Change a name or type to create the table your way; values
+        that do not fit fail the import.
+      </p>
+      <exa-button
+        class="import__start-import"
+        [disabled]="!importable()"
+        [loading]="page().starting"
+        (clickButton)="startImport()"
+      >
+        Import {{ count(suggestion.rows) }} rows
+      </exa-button>
+    </div>
+  </section>
   } @if (page().phase !== 'suggestion' && page().phase !== 'running') {
   <div class="import__box" data-label="Recent imports">
     @if (page().recent.length === 0) {

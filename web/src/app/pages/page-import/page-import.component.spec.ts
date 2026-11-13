@@ -168,4 +168,160 @@ describe('PageImportComponent', () => {
 
     expect(api.runOperation).toHaveBeenCalledWith('test', 'start');
   });
+
+  describe('suggested table', () => {
+    const input = (selector: string): HTMLInputElement => root.query(By.css(selector)).nativeElement;
+    const type = async (selector: string, value: string) => {
+      const field = input(selector);
+      field.value = value;
+      field.dispatchEvent(new Event('input'));
+      await refresh();
+    };
+    const columnRows = () => root.queryAll(By.css('.import__column'));
+    const importButton = () => button('.import__start-import');
+
+    const suggest = async (suggestion = tripsSuggestion()) => {
+      await render({ suggestions: { 'upload-1': suggestion } });
+      await drop(parquet('yellow_tripdata_2024-01.parquet'), parquet('yellow_tripdata_2024-02.parquet'));
+    };
+
+    it('shows the files, the table, and the columns with types and samples', async () => {
+      await suggest();
+
+      expect(text('.import__file-name')).toBe('yellow_tripdata_2024-01.parquet, yellow_tripdata_2024-02.parquet');
+      expect(text('.import__source-summary')).toBe('2 files · 98.4 MB · 5,972,150 rows');
+      expect(input('#import-schema').value).toBe('DATA');
+      expect(input('#import-table').value).toBe('YELLOW_TRIPDATA_2024');
+      expect(
+        columnRows().map(row => [
+          (row.query(By.css('.import__cell-name')).nativeElement as HTMLInputElement).value,
+          (row.query(By.css('.import__cell-type')).nativeElement as HTMLInputElement).value,
+          text('td:nth-child(4)', row),
+          text('.import__sample', row),
+        ])
+      ).toEqual([
+        ['VendorID', 'DECIMAL(10,0)', 'INT32', '2'],
+        ['passenger_count', 'DECIMAL(20,0)', 'INT64', '1'],
+        ['trip_distance', 'DOUBLE PRECISION', 'DOUBLE', '1.72'],
+      ]);
+      expect(text('.import__start-import')).toBe('Import 5,972,150 rows');
+      expect(importButton().disabled).toBe(false);
+    });
+
+    it('imports with the changed names and types, and resets them to the suggestion', async () => {
+      await suggest();
+
+      await type('.import__column:nth-child(2) .import__cell-name', 'PASSENGERS');
+      await type('.import__column:nth-child(2) .import__cell-type', 'DECIMAL(3,0)');
+
+      expect(input('.import__column:nth-child(2) .import__cell-type').classList).toContain('import__cell--changed');
+
+      await root.query(By.css('.import__reset')).nativeElement.click();
+      await refresh();
+
+      expect(input('.import__column:nth-child(2) .import__cell-name').value).toBe('passenger_count');
+
+      await type('#import-table', 'TRIPS');
+      await type('.import__column:nth-child(2) .import__cell-type', 'DECIMAL(3,0)');
+      importButton().click();
+      await refresh();
+
+      expect(api.startImport).toHaveBeenCalledWith('default', {
+        source: { kind: 'upload', upload_id: 'upload-1' },
+        schema: 'DATA',
+        table: 'TRIPS',
+        columns: [
+          { name: 'VendorID', type: 'DECIMAL(10,0)' },
+          { name: 'passenger_count', type: 'DECIMAL(3,0)' },
+          { name: 'trip_distance', type: 'DOUBLE PRECISION' },
+        ],
+      });
+    });
+
+    it('disables the import while the table or a column name is empty', async () => {
+      await suggest();
+
+      await type('.import__column:nth-child(1) .import__cell-name', '');
+      expect(importButton().disabled).toBe(true);
+
+      await type('.import__column:nth-child(1) .import__cell-name', 'VENDOR');
+      await type('#import-table', '');
+      expect(importButton().disabled).toBe(true);
+    });
+
+    it('uses the alternative to a taken table name', async () => {
+      await suggest(
+        tripsSuggestion({
+          table: 'EVENTS',
+          importable: false,
+          problems: [
+            {
+              code: 'table_taken',
+              message: 'DATA.EVENTS exists. Choose another name, such as EVENTS_2.',
+              alternative: 'EVENTS_2',
+            },
+          ],
+        })
+      );
+
+      expect(text('.import__problem')).toBe('DATA.EVENTS exists. Choose another name, such as EVENTS_2. Use EVENTS_2');
+      expect(input('#import-table').classList).toContain('import__input--bad');
+      expect(importButton().disabled).toBe(true);
+
+      root.query(By.css('.import__alternative')).nativeElement.click();
+      await refresh();
+
+      expect(input('#import-table').value).toBe('EVENTS_2');
+      expect(root.query(By.css('.import__problem'))).toBeNull();
+      expect(importButton().disabled).toBe(false);
+    });
+
+    it('blocks the import of a nested column', async () => {
+      const message =
+        'Exasol cannot import the column payload (struct): it does not support nested types, such as structs and ' +
+        'lists. Remove it from the file, or import other files.';
+      await suggest(
+        tripsSuggestion({
+          columns: [
+            { name: 'id', type: 'DECIMAL(20,0)', parquet_type: 'INT64', sample: '7' },
+            { name: 'payload', type: null, parquet_type: 'STRUCT', sample: null },
+          ],
+          importable: false,
+          problems: [{ code: 'unsupported_columns', message, columns: ['payload'] }],
+        })
+      );
+
+      expect(text('.import__problem')).toBe(message);
+      expect(text('.import__column:nth-child(2) .import__unsupported')).toBe('Cannot be imported');
+      expect(importButton().disabled).toBe(true);
+    });
+
+    it('shows the first ten columns until asked for all', async () => {
+      const columns = Array.from({ length: 19 }, (_, index) => ({
+        name: `c${index}`,
+        type: 'DECIMAL(10,0)',
+        parquet_type: 'INT32',
+        sample: null,
+      }));
+      await suggest(tripsSuggestion({ columns }));
+
+      expect(columnRows()).toHaveLength(10);
+      expect(text('.import__show-all')).toBe('Show all 19 columns');
+
+      root.query(By.css('.import__show-all')).nativeElement.click();
+      await refresh();
+
+      expect(columnRows()).toHaveLength(19);
+      expect(root.query(By.css('.import__show-all'))).toBeNull();
+    });
+
+    it('returns to the drop area for other files', async () => {
+      await suggest();
+
+      root.query(By.css('.import__other-files')).nativeElement.click();
+      await refresh();
+
+      expect(root.query(By.css('.import__drop'))).toBeTruthy();
+    });
+  });
 });
