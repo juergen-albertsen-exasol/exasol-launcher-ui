@@ -124,7 +124,7 @@ deployment SHALL open that deployment's overview page.
 ### Requirement: The startup flag opens a deployment's overview
 
 The access URL SHALL open the overview page of the deployment given with
-`exasol-local-ui --deployment <name>`.
+`exasol-launcher-ui --deployment <name>`.
 
 #### Scenario: The startup flag chooses the deployment
 

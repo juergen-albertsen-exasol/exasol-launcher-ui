@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
-	"github.com/exasol/exasol-local-ui/internal/sql"
-	"github.com/exasol/exasol-local-ui/internal/sql/sqltest"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/sql/sqltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

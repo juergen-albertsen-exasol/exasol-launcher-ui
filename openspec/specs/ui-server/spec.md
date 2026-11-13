@@ -2,30 +2,30 @@
 
 ## Purpose
 
-Start Exasol Local UI as a loopback-only server that only the browser holding its session token can use.
+Start Exasol Launcher UI as a loopback-only server that only the browser holding its session token can use.
 
 ## Requirements
 ### Requirement: The command starts a loopback web server
 
-`exasol-local-ui` SHALL serve the application on `127.0.0.1`, on port 5180 by
+`exasol-launcher-ui` SHALL serve the application on `127.0.0.1`, on port 5180 by
 default or on the port given with `--port`, and SHALL keep serving until it is
 interrupted. On startup it SHALL print the access URL, and with `--open` it
 SHALL also open that URL in the default browser.
 
 #### Scenario: Default startup prints the access URL
 
-- **WHEN** the user runs `exasol-local-ui` without `--deployment`
+- **WHEN** the user runs `exasol-launcher-ui` without `--deployment`
 - **THEN** it prints a URL of the form `http://127.0.0.1:5180/?token=<token>`
   and the application answers on that address
 
 #### Scenario: A chosen port is used
 
-- **WHEN** the user runs `exasol-local-ui --port 6000`
+- **WHEN** the user runs `exasol-launcher-ui --port 6000`
 - **THEN** the printed URL and the served address use port 6000
 
 #### Scenario: Startup opens the browser on request
 
-- **WHEN** the user runs `exasol-local-ui --open`
+- **WHEN** the user runs `exasol-launcher-ui --open`
 - **THEN** the default browser opens the printed access URL
 
 #### Scenario: An occupied port fails startup

@@ -1,4 +1,4 @@
-module github.com/exasol/exasol-local-ui
+module github.com/exasol/exasol-launcher-ui
 
 go 1.27.0
 

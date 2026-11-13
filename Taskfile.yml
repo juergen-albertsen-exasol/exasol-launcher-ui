@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  BINARY: bin/exasol-local-ui
+  BINARY: bin/exasol-launcher-ui
   DEV_TOOL: go tool -modfile=tools/devtools/go.mod
   WEBAPP_DIST: internal/webapp/dist
   DEV_WEBAPP_DIST: web/.dev-dist
@@ -13,10 +13,10 @@ tasks:
       - task --list
 
   build:
-    desc: Build the web application and the exasol-local-ui binary that embeds it
+    desc: Build the web application and the exasol-launcher-ui binary that embeds it
     deps: [web-build]
     cmds:
-      - go build -o {{.BINARY}} ./cmd/exasol-local-ui
+      - go build -o {{.BINARY}} ./cmd/exasol-launcher-ui
 
   test:
     desc: Run the Go and web application unit tests
@@ -63,7 +63,7 @@ tasks:
     deps: [webapp-placeholder]
     cmds:
       - mkdir -p {{.DEV_WEBAPP_DIST}}
-      - go run ./cmd/exasol-local-ui --web-dir {{.DEV_WEBAPP_DIST}} {{.CLI_ARGS}}
+      - go run ./cmd/exasol-launcher-ui --web-dir {{.DEV_WEBAPP_DIST}} {{.CLI_ARGS}}
 
   web-watch:
     internal: true

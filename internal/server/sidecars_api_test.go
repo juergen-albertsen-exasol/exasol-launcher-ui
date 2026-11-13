@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/exasol/exasol-local-ui/internal/launcher/launchertest"
-	"github.com/exasol/exasol-local-ui/internal/operations"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher/launchertest"
+	"github.com/exasol/exasol-launcher-ui/internal/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -1,57 +1,71 @@
 # AI Agent Guidelines
 
-Exasol Local UI is a prototype web UI for local Exasol Personal deployments. It
-is optional: users run it beside the launcher, and the launcher itself does not
-depend on it. Its pages are meant to graduate later, either into the launcher
-(as an `exasol ui` command) or into the cloud Administration UI, so design
-choices should keep both paths open.
+Exasol Launcher UI is a prototype web UI for local Exasol Personal deployments.
+It is optional: users run it beside the `exasol` launcher, and the launcher
+does not depend on it. Its pages are meant to graduate later, either into the
+launcher (as an `exasol ui` command) or into the cloud Administration UI, so
+design choices should keep both paths open.
+
+## Start Here
+
+Read these before changing code:
+
+- [docs/architecture.md](docs/architecture.md): components, request flow,
+  security model, server packages, HTTP API conventions, launcher and database
+  integration, the web application's layout, testing, and the steps for adding
+  a feature.
+- [README.md](README.md): what the UI does, usage, setup (including the GitHub
+  Packages token), and the development loop.
+- `openspec/specs/`: the canonical behavior of every capability.
+
+`task build`, `task test`, and `task lint` must pass for every commit.
+
+## Keep the Docs Current
+
+Every change that alters what these documents describe updates them in the
+same commit: [docs/architecture.md](docs/architecture.md) for structure,
+conventions, and findings about the launcher or the database;
+[README.md](README.md) for user-visible features, flags, and setup; and the
+Status section below when an OpenSpec change is archived. Agents rely on these
+files to work without rediscovering the repository, so stale docs are a bug.
 
 ## Related Repositories
 
 This repository builds on two sibling checkouts. Read them as reference, and
 do not change them from a session in this repository.
 
-**[Exasol Personal](../exasol-personal)** (`../exasol-personal`) holds the launcher (`exasol` CLI)
-that creates and operates local deployments. This UI drives the launcher
-through its JSON CLI output and reads a deployment's credentials from its
-deployment directory. The launcher's contracts are specified in
-`openspec/specs/` there; the most relevant are `cli-output-contract`,
-`lifecycle-json-output`, `deployment-info-reporting`,
+**[Exasol Personal](../exasol-personal)** (`../exasol-personal`) holds the
+launcher (`exasol` CLI) that creates and operates local deployments. This UI
+drives the launcher through its JSON CLI output and reads a deployment's
+credentials from its deployment directory. The launcher's contracts are
+specified in `openspec/specs/` there; the most relevant are
+`cli-output-contract`, `lifecycle-json-output`, `deployment-info-reporting`,
 `deployment-directory-resolution`, `sidecar-configuration`,
 `sidecar-lifecycle`, and `credential-confidentiality`. User-facing behavior is
 documented in `user-docs/content/`.
 
-**[Admin UI](../admin-ui)** (`../admin-ui`) is the cloud Administration UI, an Angular frontend for
-the Exasol Administration API. This UI keeps its look and feel and follows the
-conventions in its `CLAUDE.md` (stack, standalone components, state
-management, SCSS with BEM, testing), so pages can move into it later. Its
-`openapi/openapi.json` defines the Administration API; shape new endpoints here
-like its resources.
-
-## Architecture
-
-The UI is a host-side companion tool rather than a launcher sidecar, because
-sidecar management, lifecycle operations, and the deployment directory are only
-reachable from the host. A Go server serves the Angular bundle and a narrow
-HTTP API. It uses the launcher's JSON CLI for deployment, lifecycle, and
-sidecar operations, and connects to the database with the credentials stored in
-the deployment directory. Health views read the database's `EXA_STATISTICS`
-schema, which local deployments populate at every granularity.
+**[Admin UI](../admin-ui)** (`../admin-ui`) is the cloud Administration UI, an
+Angular frontend for the Exasol Administration API. This UI keeps its look and
+feel and follows the conventions in its `CLAUDE.md` (stack, standalone
+components, state management, SCSS with BEM, testing), so pages can move into
+it later. Its `openapi/openapi.json` defines the Administration API; shape new
+endpoints here like its resources.
 
 ## Security Invariants
 
 The server runs SQL with the deployment's administrative credentials, so it
 binds to loopback only, requires a per-session token that the startup URL
 exchanges for a cookie, and rejects requests whose `Host` or `Origin` does not
-match the server. Database passwords never reach the browser or the logs.
+match the server. Database passwords never reach the browser or the logs. See
+[Security model](docs/architecture.md#security-model).
 
 ## Repository Workflow
 
 Draft every feature's screens in Claude Design before specifying it: on the
-[Exasol Local](https://claude.ai/artifact/UQ4cH4hUXciqeB2kzWMRQa) canvas, built
+[design canvas](https://claude.ai/artifact/UQ4cH4hUXciqeB2kzWMRQa), built
 with the [Exasol Admin UI](https://claude.ai/artifact/WJ3Tm2ihMri7fiUcJtKRKj)
-design system (light theme first). Iterate there until the design is agreed, then
-implement what it shows.
+design system (light theme first). Iterate there until the design is agreed,
+then implement what it shows.
 
 Use OpenSpec for every non-trivial change: propose with `/opsx:propose`,
 implement with `/opsx:apply`, and archive with `/opsx:archive` before
@@ -69,49 +83,26 @@ constraints, or workarounds, never to restate code or refer to tasks or
 OpenSpec artifacts. Keep documentation concise, link instead of duplicating,
 and avoid em dashes.
 
-## Layout
-
-- `cmd/exasol-local-ui/`: the command, its flags, and startup.
-- `internal/server/`: HTTP server, session token and origin checks, the
-  `/api/v1` handlers, and serving the web application.
-- `internal/launcher/`: the launcher's JSON CLI client; `launchertest/` holds
-  the fake launcher executable tests use.
-- `internal/database/`: reading `secrets.json`, pinging the database, password
-  redaction.
-- `internal/sql/`: SQL sessions, statements, cancellation, CSV exports, and
-  schema metadata; `sqltest/` holds the fake database tests use.
-- `internal/webapp/`: embeds the Angular build from `web/`.
-- `web/`: the Angular application. The `go.mod` there only keeps Go tooling
-  out of `node_modules`.
-
-`task build`, `task test`, and `task lint` must pass for every commit; the
-[README](README.md) covers setup (including the GitHub Packages token) and the
-development loop.
+Check destructive operations on a scratch deployment from
+`exasol init local -d <name>`, which creates no VM, never on real ones.
 
 ## Status
 
-Done: the server, launcher and database integration, the deployment tiles and
-overview (`add-app-scaffold`, `refine-deployment-pages`), long-running
-operations with Start, Stop, and the activity indicator (`add-operations`),
-the Settings page with configuration, deploy, destroy, and remove
-(`add-deployment-settings`), the Sidecars and MCP server pages
-(`add-sidecar-management`), the Script languages page
-(`add-script-languages`), the Diagnostics page (`add-diagnostics`), and the
-SQL page with its editor, schema browser, results, and history
-(`add-sql-editor`). Long
-launcher commands go through `internal/operations`; later changes reuse it,
-passing what an operation acts on as `operations.Parameters`
-(`OperationParameters` in the browser), and operations on a part of a
-deployment name it, as sidecar and script language operations do. Each
-deployment page has its own route segment (`overview`, `sql`, `sidecars`,
-`mcp`, `script-languages`, `settings`, `diagnostics`) and drawer entry in
-`routes.ts`; the SQL page loads lazily to keep the initial bundle under its
-budget. Short launcher failures arrive as `LauncherError`, so endpoints
-can answer 409 with the launcher's message.
+Done, each as an archived OpenSpec change: the server, launcher and database
+integration, and the deployment tiles and overview (`add-app-scaffold`,
+`refine-deployment-pages`); long-running operations with Start, Stop, and the
+activity indicator (`add-operations`); the Settings page with configuration,
+deploy, destroy, and remove (`add-deployment-settings`); the Sidecars and MCP
+server pages (`add-sidecar-management`); the Script languages page
+(`add-script-languages`); the Diagnostics page (`add-diagnostics`); and the SQL
+page with its editor, schema browser, results, and history (`add-sql-editor`).
+
+Implemented, not yet archived: the Import data page for Parquet files
+(`add-parquet-import`).
 
 The canvas already draws every remaining screen. Implement these as separate
-OpenSpec changes, one per session, in this order (the canvas artboard names
-in parentheses):
+OpenSpec changes, one per session, in this order (the canvas artboard names in
+parentheses):
 
 1. `add-deployment-creation`: the New deployment page (`NewDeployment`).
    `install` and `init` for every preset; test only local deployments, since
@@ -122,31 +113,3 @@ in parentheses):
    `version --latest`.
 
 Health views from `EXA_STATISTICS` follow later.
-
-SQL findings: statements run through the driver's exported connection
-(`internal/sql/driver.go`), because `database/sql` loses row counts and the
-driver's own decoding turns numbers into `float64`. Cancelling a statement
-runs `KILL STATEMENT IN SESSION` on a separate connection; cancelling the
-driver's context leaves the connection out of step.
-
-Launcher findings that affect these changes:
-
-- `config set --help` lists no preset options. The command accepts them as
-  `--<option>` flags validated against the preset; `config get --json` reports
-  them under `infrastructure.options` and `installation.options`.
-- `config set` and `config reset` only work on initialized cloud deployments
-  and stopped local deployments; the launcher refuses them otherwise.
-- `init`, `install`, `deploy`, and `destroy` have no `--json` output; judge
-  them by exit status and stream their stderr.
-- Without a terminal the launcher writes JSON log records to stderr;
-  `launcher.Stream` turns them into readable lines.
-- Decide actions on the deployment listing's `status`, which checks the
-  runtime; `info` can report a stale stored `deploymentState`.
-- The launcher's directory lock breaks when two launchers start on one
-  deployment at the same moment, leaving it locked with "invalid marker"
-  ([exasol-personal#515](https://github.com/exasol/exasol-personal/issues/515)).
-  The launcher client therefore runs short commands one at a time and
-  interrupts rather than kills a launcher; keep new launcher calls on it.
-  To recover, delete the empty `.dirmutex.*` files while no launcher runs.
-- Check destructive operations on a scratch deployment from
-  `exasol init local -d <name>`, which creates no VM, never on real ones.

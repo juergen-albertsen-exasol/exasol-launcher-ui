@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/exasol/exasol-local-ui/internal/launcher/launchertest"
-	"github.com/exasol/exasol-local-ui/internal/sql"
-	"github.com/exasol/exasol-local-ui/internal/sql/sqltest"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher/launchertest"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/sql/sqltest"
 	"github.com/stretchr/testify/assert"
 )
 

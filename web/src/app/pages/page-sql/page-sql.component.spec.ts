@@ -408,7 +408,7 @@ describe('PageSqlComponent', () => {
   });
 
   it('shows the saved text while the database is stopped', async () => {
-    localStorage.setItem('exasol-local-ui:sql:default:text', 'SELECT 42');
+    localStorage.setItem('exasol-launcher-ui:sql:default:text', 'SELECT 42');
 
     await render({ deployments: [summary('default', 'stopped')] });
 
@@ -450,6 +450,6 @@ describe('PageSqlComponent', () => {
     await click('.history__toggle');
     await click('.history__clear');
     expect(text('.history__empty')).toBe('No statements have run on this deployment in this browser.');
-    expect(localStorage.getItem('exasol-local-ui:sql:default:history')).toBeNull();
+    expect(localStorage.getItem('exasol-launcher-ui:sql:default:history')).toBeNull();
   });
 });

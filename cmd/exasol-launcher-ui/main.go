@@ -13,13 +13,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/exasol/exasol-local-ui/internal/imports"
-	"github.com/exasol/exasol-local-ui/internal/launcher"
-	"github.com/exasol/exasol-local-ui/internal/opener"
-	"github.com/exasol/exasol-local-ui/internal/operations"
-	"github.com/exasol/exasol-local-ui/internal/server"
-	"github.com/exasol/exasol-local-ui/internal/sql"
-	"github.com/exasol/exasol-local-ui/internal/webapp"
+	"github.com/exasol/exasol-launcher-ui/internal/imports"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/opener"
+	"github.com/exasol/exasol-launcher-ui/internal/operations"
+	"github.com/exasol/exasol-launcher-ui/internal/server"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/webapp"
 )
 
 const usageExitCode = 2
@@ -72,7 +72,7 @@ func run(ctx context.Context, args []string, env environment) int {
 func parseOptions(args []string, stderr io.Writer) (options, error) {
 	var opts options
 
-	flags := flag.NewFlagSet("exasol-local-ui", flag.ContinueOnError)
+	flags := flag.NewFlagSet("exasol-launcher-ui", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.IntVar(&opts.port, "port", server.DefaultPort, "port to serve on, on 127.0.0.1")
 	flags.BoolVar(&opts.open, "open", false, "open the access URL in the default browser")
@@ -150,7 +150,7 @@ func serve(ctx context.Context, opts options, env environment) error {
 			WebApp:  webApp,
 		}))
 
-	_, _ = fmt.Fprintf(env.stdout, "Exasol Local UI is available at %s\n", accessURL)
+	_, _ = fmt.Fprintf(env.stdout, "Exasol Launcher UI is available at %s\n", accessURL)
 
 	if opts.open {
 		if err := env.openBrowser(ctx, accessURL); err != nil {

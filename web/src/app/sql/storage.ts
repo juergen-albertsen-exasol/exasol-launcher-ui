@@ -21,8 +21,8 @@ export interface HistoryEntry {
 
 export const HISTORY_LIMIT = 100;
 
-const textKey = (deployment: string) => `exasol-local-ui:sql:${deployment}:text`;
-const historyKey = (deployment: string) => `exasol-local-ui:sql:${deployment}:history`;
+const textKey = (deployment: string) => `exasol-launcher-ui:sql:${deployment}:text`;
+const historyKey = (deployment: string) => `exasol-launcher-ui:sql:${deployment}:history`;
 
 function storage(): Storage | undefined {
   try {

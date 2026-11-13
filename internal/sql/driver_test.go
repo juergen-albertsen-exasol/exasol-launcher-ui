@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/exasol/exasol-driver-go/pkg/types"
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

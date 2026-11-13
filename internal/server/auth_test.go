@@ -116,8 +116,8 @@ func TestAPIRequiresTheSessionCookie(t *testing.T) {
 
 	for name, cookie := range map[string]*http.Cookie{
 		"no cookie":    nil,
-		"wrong value":  {Name: "exasol_local_ui_session_5180", Value: "earlier-token"},
-		"another port": {Name: "exasol_local_ui_session_6000", Value: testToken},
+		"wrong value":  {Name: "exasol_launcher_ui_session_5180", Value: "earlier-token"},
+		"another port": {Name: "exasol_launcher_ui_session_6000", Value: testToken},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

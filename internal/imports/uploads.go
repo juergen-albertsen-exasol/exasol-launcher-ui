@@ -69,7 +69,7 @@ type upload struct {
 
 // DefaultUploadsDir is the folder uploads are kept in by default.
 func DefaultUploadsDir() string {
-	return filepath.Join(os.TempDir(), "exasol-local-ui", "uploads")
+	return filepath.Join(os.TempDir(), "exasol-launcher-ui", "uploads")
 }
 
 // NewUploads keeps uploads in dir, which the first upload creates.

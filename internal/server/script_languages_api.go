@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/exasol/exasol-local-ui/internal/launcher"
-	"github.com/exasol/exasol-local-ui/internal/operations"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/operations"
 )
 
 const (

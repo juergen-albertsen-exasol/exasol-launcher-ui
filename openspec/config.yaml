@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  Exasol Local UI is an optional prototype web UI for local Exasol Personal
+  Exasol Launcher UI is an optional prototype web UI for local Exasol Personal
   deployments. A host-side Go server serves an Angular app and a narrow HTTP
   API; it drives the Exasol Personal launcher (../exasol-personal) through its
   JSON CLI and connects to the database with the deployment's stored
@@ -11,7 +11,7 @@ context: |
   resources (../admin-ui/openapi/openapi.json) so they can be adopted there.
   The server binds to loopback, requires a session token, and checks Host and
   Origin headers.
-  Every feature's screens are drafted first on the Exasol Local design canvas
+  Every feature's screens are drafted first on the design canvas
   (https://claude.ai/artifact/UQ4cH4hUXciqeB2kzWMRQa), built with the Exasol
   Admin UI design system (https://claude.ai/artifact/WJ3Tm2ihMri7fiUcJtKRKj,
   light theme first); proposals implement the agreed design.

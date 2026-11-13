@@ -1,4 +1,4 @@
-module github.com/exasol/exasol-local-ui/tools/devtools
+module github.com/exasol/exasol-launcher-ui/tools/devtools
 
 go 1.27.0
 

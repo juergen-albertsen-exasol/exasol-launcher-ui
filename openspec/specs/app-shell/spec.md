@@ -64,7 +64,7 @@ reloaded or bookmarked application route opens the same page.
 ### Requirement: An expired session explains how to reconnect
 
 When an API request receives status 401, the application SHALL show a message
-telling the user to open the access URL that `exasol-local-ui` printed.
+telling the user to open the access URL that `exasol-launcher-ui` printed.
 
 #### Scenario: A restarted server invalidates the open page
 

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
-	"github.com/exasol/exasol-local-ui/internal/launcher"
-	"github.com/exasol/exasol-local-ui/internal/launcher/launchertest"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher/launchertest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

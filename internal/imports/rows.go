@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 )
 
 func eachRow(ctx context.Context, rows sql.Rows, visit func([]sql.Value)) error {

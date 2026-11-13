@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 )
 
 type schemaView struct {

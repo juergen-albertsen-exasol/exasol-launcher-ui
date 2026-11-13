@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
 )
 
 // Column describes a column of a result set.

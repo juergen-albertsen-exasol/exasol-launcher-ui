@@ -99,7 +99,7 @@ describe('PageMcpComponent', () => {
 
     client.query(By.css('button[aria-label="Copy the command"]')).nativeElement.click();
     expect(writeText).toHaveBeenCalledWith(command);
-    expect(text(client, '.mcp__note')).toContain("Exasol Local does not change the client's configuration.");
+    expect(text(client, '.mcp__note')).toContain("Exasol Launcher UI does not change the client's configuration.");
   });
 
   it('names the configuration file and shows the entry for a client configured through a file', async () => {

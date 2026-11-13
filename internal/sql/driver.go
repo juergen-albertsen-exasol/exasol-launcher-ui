@@ -14,7 +14,7 @@ import (
 
 	"github.com/exasol/exasol-driver-go/pkg/connection"
 	"github.com/exasol/exasol-driver-go/pkg/types"
-	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
 )
 
 const (

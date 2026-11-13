@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 )
 
 // Statuses of imports and of their files.

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
 )
 
 const (

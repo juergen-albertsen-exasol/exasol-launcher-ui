@@ -53,7 +53,7 @@ linters:
       sections:
         - standard
         - default
-        - prefix(github.com/exasol/exasol-local-ui)
+        - prefix(github.com/exasol/exasol-launcher-ui)
 
     nlreturn:
       block-size: 2

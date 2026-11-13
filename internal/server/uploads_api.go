@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/exasol/exasol-local-ui/internal/imports"
+	"github.com/exasol/exasol-launcher-ui/internal/imports"
 )
 
 const (

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/imports"
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/imports"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 )
 
 const (

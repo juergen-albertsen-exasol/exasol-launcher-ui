@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
-	"github.com/exasol/exasol-local-ui/internal/launcher"
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const integrationSchema = "EXASOL_LOCAL_UI_IT"
+const integrationSchema = "EXASOL_LAUNCHER_UI_IT"
 
 // localTarget returns the database of a local deployment whose database is
 // ready, and skips the test when there is none.
@@ -173,7 +173,7 @@ func TestSchemasOfALocalDeployment(t *testing.T) {
 	manager := sql.NewManager(sql.NewDriverOpener())
 	t.Cleanup(func() { _ = manager.Close(context.Background()) })
 
-	const schemaName = "EXASOL_LOCAL_UI_META"
+	const schemaName = "EXASOL_LAUNCHER_UI_META"
 
 	sessionID, err := manager.Open(t.Context(), name, target)
 	require.NoError(t, err)

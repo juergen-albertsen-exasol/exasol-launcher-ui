@@ -21,7 +21,7 @@ const (
 	secretsFile = "secrets.json"
 	pingTimeout = 5 * time.Second
 	redacted    = "********"
-	clientName  = "exasol-local-ui"
+	clientName  = "exasol-launcher-ui"
 )
 
 // Target identifies a database and the credentials to connect with.

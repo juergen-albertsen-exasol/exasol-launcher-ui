@@ -1,5 +1,5 @@
 {
-  "name": "exasol-local-ui",
+  "name": "exasol-launcher-ui",
   "version": "0.0.0",
   "private": true,
   "scripts": {

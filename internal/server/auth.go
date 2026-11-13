@@ -15,7 +15,7 @@ const (
 	tokenParameter = "token"
 	apiPathPrefix  = "/api/"
 
-	reconnectHint = "Open the access URL that exasol-local-ui printed when it started."
+	reconnectHint = "Open the access URL that exasol-launcher-ui printed when it started."
 )
 
 // NewToken returns a random 256-bit session token.
@@ -42,7 +42,7 @@ func NewGuard(token string, port int) *Guard {
 		token: token,
 		// Cookies are not scoped by port, so servers on different ports need
 		// distinct cookie names to keep their sessions apart.
-		cookieName: "exasol_local_ui_session_" + strconv.Itoa(port),
+		cookieName: "exasol_launcher_ui_session_" + strconv.Itoa(port),
 		allowedHosts: map[string]bool{
 			LoopbackAddress + portSuffix: true,
 			"localhost" + portSuffix:     true,

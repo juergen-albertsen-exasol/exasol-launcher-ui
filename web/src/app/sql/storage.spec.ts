@@ -21,7 +21,7 @@ describe('SQL storage', () => {
     expect(loadText('default')).toBe('SELECT 1');
     expect(loadText('test')).toBe('SELECT 2');
     expect(loadText('other')).toBeUndefined();
-    expect(localStorage.getItem('exasol-local-ui:sql:default:text')).toBe('SELECT 1');
+    expect(localStorage.getItem('exasol-launcher-ui:sql:default:text')).toBe('SELECT 1');
   });
 
   it('adds a statement on a new line after the text', () => {
@@ -54,7 +54,7 @@ describe('SQL storage', () => {
   });
 
   it('ignores a corrupt history', () => {
-    localStorage.setItem('exasol-local-ui:sql:default:history', '{');
+    localStorage.setItem('exasol-launcher-ui:sql:default:history', '{');
 
     expect(loadHistory('default')).toEqual([]);
   });

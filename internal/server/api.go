@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
-	"github.com/exasol/exasol-local-ui/internal/imports"
-	"github.com/exasol/exasol-local-ui/internal/launcher"
-	"github.com/exasol/exasol-local-ui/internal/operations"
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/imports"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/operations"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
 )
 
 // Kind names what an operation does.

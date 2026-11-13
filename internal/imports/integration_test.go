@@ -14,17 +14,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
-	"github.com/exasol/exasol-local-ui/internal/imports"
-	"github.com/exasol/exasol-local-ui/internal/imports/importstest"
-	"github.com/exasol/exasol-local-ui/internal/launcher"
-	"github.com/exasol/exasol-local-ui/internal/sql"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/imports"
+	"github.com/exasol/exasol-launcher-ui/internal/imports/importstest"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	integrationSchema = "EXASOL_LOCAL_UI_IT_IMPORTS"
+	integrationSchema = "EXASOL_LAUNCHER_UI_IT_IMPORTS"
 	sampleBucket      = "https://exasol-easy-data-access.s3.eu-central-1.amazonaws.com/sample-data/"
 )
 

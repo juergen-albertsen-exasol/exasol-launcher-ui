@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
-	"github.com/exasol/exasol-local-ui/internal/launcher"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/launcher"
 )
 
 const (

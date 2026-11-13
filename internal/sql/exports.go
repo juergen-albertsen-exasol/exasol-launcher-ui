@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-launcher-ui/internal/database"
 )
 
 const exportLifetime = 5 * time.Minute
