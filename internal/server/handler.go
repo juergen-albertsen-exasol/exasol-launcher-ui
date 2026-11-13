@@ -8,6 +8,7 @@ import (
 
 	"github.com/exasol/exasol-local-ui/internal/database"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
+	"github.com/exasol/exasol-local-ui/internal/opener"
 )
 
 // Config holds what the handler needs to answer requests.
@@ -15,6 +16,8 @@ type Config struct {
 	Launcher *launcher.Client
 	// Ping defaults to database.Ping.
 	Ping func(ctx context.Context, target database.Target) (time.Duration, error)
+	// OpenFolder defaults to opener.Open.
+	OpenFolder func(ctx context.Context, path string) error
 	// WebApp holds the compiled browser application.
 	WebApp fs.FS
 }
@@ -25,8 +28,16 @@ func NewHandler(config Config) http.Handler {
 		config.Ping = database.Ping
 	}
 
+	if config.OpenFolder == nil {
+		config.OpenFolder = opener.Open
+	}
+
 	mux := http.NewServeMux()
-	(&api{launcher: config.Launcher, ping: config.Ping}).register(mux)
+	(&api{
+		launcher:   config.Launcher,
+		ping:       config.Ping,
+		openFolder: config.OpenFolder,
+	}).register(mux)
 	mux.Handle("/", newWebApp(config.WebApp))
 
 	return mux

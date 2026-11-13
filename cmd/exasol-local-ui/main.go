@@ -13,8 +13,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/exasol/exasol-local-ui/internal/browser"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
+	"github.com/exasol/exasol-local-ui/internal/opener"
 	"github.com/exasol/exasol-local-ui/internal/server"
 	"github.com/exasol/exasol-local-ui/internal/webapp"
 )
@@ -40,7 +40,7 @@ func main() {
 	exitCode := run(ctx, os.Args[1:], environment{
 		stdout:      os.Stdout,
 		stderr:      os.Stderr,
-		openBrowser: browser.Open,
+		openBrowser: opener.Open,
 	})
 
 	stop()

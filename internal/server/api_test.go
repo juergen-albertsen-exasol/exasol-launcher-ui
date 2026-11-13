@@ -259,3 +259,67 @@ func TestPingOfAnUnknownDeploymentIsNotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, response.Code)
 }
+
+func callOpenFolder(
+	t *testing.T,
+	fake *launchertest.Fake,
+	name string,
+	openFolder func(ctx context.Context, path string) error,
+) *httptest.ResponseRecorder {
+	t.Helper()
+
+	request := httptest.NewRequestWithContext(
+		t.Context(), http.MethodPost, "/api/v1/deployments/"+name+"/open-folder", nil)
+	recorder := httptest.NewRecorder()
+	NewHandler(Config{Launcher: launcher.New(fake.Executable), OpenFolder: openFolder}).
+		ServeHTTP(recorder, request)
+
+	return recorder
+}
+
+func TestOpenFolderOpensTheListedDirectory(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Respond(twoDeployments, listArgs...)
+
+	var opened string
+
+	response := callOpenFolder(t, fake, "test", func(_ context.Context, path string) error {
+		opened = path
+
+		return nil
+	})
+
+	assert.Equal(t, http.StatusNoContent, response.Code)
+	assert.Equal(t, "/deployments/test", opened)
+}
+
+func TestOpenFolderOfAnUnknownDeploymentIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Respond(twoDeployments, listArgs...)
+
+	response := callOpenFolder(t, fake, "unknown", func(context.Context, string) error {
+		t.Error("unexpected open")
+
+		return nil
+	})
+
+	assert.Equal(t, http.StatusNotFound, response.Code)
+}
+
+func TestOpenFolderFailureIsReported(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	fake.Respond(twoDeployments, listArgs...)
+
+	response := callOpenFolder(t, fake, "default", func(context.Context, string) error {
+		return errors.New("no file manager")
+	})
+
+	assert.Equal(t, http.StatusInternalServerError, response.Code)
+	assert.Contains(t, decode[problem](t, response).Detail, "no file manager")
+}

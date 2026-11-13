@@ -44,14 +44,16 @@ type pingResult struct {
 }
 
 type api struct {
-	launcher *launcher.Client
-	ping     func(ctx context.Context, target database.Target) (time.Duration, error)
+	launcher   *launcher.Client
+	ping       func(ctx context.Context, target database.Target) (time.Duration, error)
+	openFolder func(ctx context.Context, path string) error
 }
 
 func (a *api) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/deployments", a.listDeployments)
 	mux.HandleFunc("GET /api/v1/deployments/{name}", a.getDeployment)
 	mux.HandleFunc("GET /api/v1/deployments/{name}/health/ping", a.pingDeployment)
+	mux.HandleFunc("POST /api/v1/deployments/{name}/open-folder", a.openDeploymentFolder)
 	mux.HandleFunc("/api/", func(response http.ResponseWriter, _ *http.Request) {
 		writeProblem(response, http.StatusNotFound, "The API has no such resource.")
 	})
@@ -179,4 +181,19 @@ func (a *api) pingConnection(
 	milliseconds := roundTrip.Milliseconds()
 
 	return pingResult{Status: reachable, RoundTripMs: &milliseconds}
+}
+
+func (a *api) openDeploymentFolder(response http.ResponseWriter, request *http.Request) {
+	deployment, ok := a.findDeployment(response, request)
+	if !ok {
+		return
+	}
+
+	if err := a.openFolder(request.Context(), deployment.Path); err != nil {
+		writeProblem(response, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	response.WriteHeader(http.StatusNoContent)
 }
