@@ -41,6 +41,20 @@ func newOperationsFixture(t *testing.T) operationsFixture {
 	client := launcher.New(fake.Executable)
 	manager := operations.NewManager(t.Context(), client, client.InvalidateListing)
 
+	// An interrupted fake launcher writes to its directory, so operations
+	// still running when the test ends must stop before it is removed.
+	t.Cleanup(func() {
+		assert.Eventually(t, func() bool {
+			for _, snapshot := range manager.List() {
+				if snapshot.Status == operations.StatusRunning {
+					return false
+				}
+			}
+
+			return true
+		}, 10*time.Second, 10*time.Millisecond)
+	})
+
 	return operationsFixture{
 		fake:    fake,
 		handler: NewHandler(Config{Launcher: client, Operations: manager}),
