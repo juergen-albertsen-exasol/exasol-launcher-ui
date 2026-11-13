@@ -34,6 +34,7 @@ tasks:
       - go -C tools/devtools mod tidy
       - git diff --exit-code go.mod go.sum tools/devtools/go.mod tools/devtools/go.sum
       - npm --prefix web run lint
+      - shellcheck scripts/install.sh
 
   lint-fix:
     desc: Run the linters and apply automatic fixes
