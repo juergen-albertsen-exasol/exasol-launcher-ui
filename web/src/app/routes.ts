@@ -1,6 +1,7 @@
 import { ActivatedRouteSnapshot, Route, withRouterConfig } from '@angular/router';
 import { NavItem } from '@exasol/ui-common';
 import { PageDeploymentsComponent } from './pages/page-deployments/page-deployments.component';
+import { PageDiagnosticsComponent } from './pages/page-diagnostics/page-diagnostics.component';
 import { PageMcpComponent } from './pages/page-mcp/page-mcp.component';
 import { PageOverviewComponent } from './pages/page-overview/page-overview.component';
 import { PageScriptLanguagesComponent } from './pages/page-script-languages/page-script-languages.component';
@@ -18,6 +19,7 @@ export const DeploymentPage = {
   MCP: 'mcp',
   SCRIPT_LANGUAGES: 'script-languages',
   SETTINGS: 'settings',
+  DIAGNOSTICS: 'diagnostics',
 } as const;
 export type DeploymentPage = (typeof DeploymentPage)[keyof typeof DeploymentPage];
 
@@ -59,6 +61,11 @@ export const APP_NAV_ITEMS: { [key: string]: NavItem } = {
     faIcon: ['fa-sliders'],
     text: 'Settings',
   },
+  [DeploymentPage.DIAGNOSTICS]: {
+    path: '',
+    faIcon: ['fa-stethoscope'],
+    text: 'Diagnostics',
+  },
 };
 
 export const setNavDeployment = (name: string): void => {
@@ -95,6 +102,7 @@ export const appRoutes: Route[] = [
       page(DeploymentPage.MCP, PageMcpComponent),
       page(DeploymentPage.SCRIPT_LANGUAGES, PageScriptLanguagesComponent),
       page(DeploymentPage.SETTINGS, PageSettingsComponent),
+      page(DeploymentPage.DIAGNOSTICS, PageDiagnosticsComponent),
       { path: '', redirectTo: DeploymentPage.OVERVIEW, pathMatch: 'full' },
     ],
   },

@@ -189,3 +189,32 @@ export interface ScriptLanguages {
   official: OfficialScriptLanguage[];
   custom: CustomScriptLanguage[];
 }
+
+export const PortReachability = {
+  REACHABLE: 'reachable',
+  REFUSED: 'refused',
+  BLOCKED: 'blocked',
+  TIMEOUT: 'timeout',
+} as const;
+export type PortReachability = (typeof PortReachability)[keyof typeof PortReachability];
+
+export interface ForwardedPort {
+  /** `db`, `ui`, or a sidecar's, such as `sidecar mcp`. */
+  name: string;
+  host_port?: number;
+  reachability: PortReachability;
+}
+
+export interface LocalRuntime {
+  platform: string;
+  platform_supported: boolean;
+  vm_running: boolean;
+  database_ready?: boolean;
+  database_error?: string;
+  warning?: string;
+  message?: string;
+  ports: ForwardedPort[];
+}
+
+/** The launcher's full report on a deployment, as `exasol diag info` prints it. */
+export type DiagnosticReport = { [key: string]: unknown };

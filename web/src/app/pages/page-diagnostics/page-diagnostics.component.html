@@ -1,0 +1,111 @@
+<div class="page-wrapper diagnostics">
+  @if (failed(); as operation) {
+  <p class="diagnostics__failure" role="alert">
+    <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+    <span>{{ runningLabel(operation) }} failed: {{ operation.error }}</span>
+  </p>
+  } @if (running(); as operation) {
+  <section class="diagnostics__panel" aria-label="Operation">
+    <exa-operation-progress [operation]="operation"></exa-operation-progress>
+  </section>
+  }
+
+  <section class="diagnostics__panel" aria-label="Diagnostics">
+    @if (local()) {
+    <div class="diagnostics__box diagnostics__local" data-label="Local runtime">
+      @if (localRuntimeError(); as error) {
+      <p class="diagnostics__message diagnostics__message--error">{{ error }}</p>
+      } @else if (localRuntime(); as runtime) {
+      <dl class="diagnostics__rows">
+        <dt>Platform</dt>
+        <dd class="diagnostics__platform">
+          {{ runtime.platform }}, {{ runtime.platform_supported ? 'supported' : 'unsupported' }}
+        </dd>
+        <dt>VM</dt>
+        <dd class="diagnostics__vm">
+          @if (runtime.vm_running) {
+          <span class="diagnostics__word diagnostics__word--ok"><span class="diagnostics__dot"></span>running</span>
+          } @else {
+          <span class="diagnostics__word">stopped</span>
+          }
+        </dd>
+        @if (runtime.vm_running) {
+        <dt>Database</dt>
+        <dd class="diagnostics__database">
+          @if (runtime.database_ready) {
+          <span class="diagnostics__word diagnostics__word--ok"><span class="diagnostics__dot"></span>ready</span>
+          } @else {
+          <span class="diagnostics__word diagnostics__word--error">
+            <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>not ready
+          </span>
+          @if (runtime.database_error) {
+          <span class="diagnostics__database-error">{{ runtime.database_error }}</span>
+          } }
+        </dd>
+        }
+      </dl>
+      @if (runtime.warning) {
+      <p class="diagnostics__warning" role="status">
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        <span>{{ runtime.warning }}</span>
+      </p>
+      } @if (runtime.message) {
+      <p class="diagnostics__note">{{ runtime.message }}</p>
+      } @if (runtime.ports.length) {
+      <div class="diagnostics__scroll">
+        <table class="diagnostics__table">
+          <thead>
+            <tr>
+              <th>Port</th>
+              <th>Host port</th>
+              <th>Reachability</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (port of runtime.ports; track port.name) {
+            <tr class="diagnostics__port">
+              <td class="diagnostics__port-name">{{ port.name }}</td>
+              <td>{{ port.host_port }}</td>
+              <td
+                class="diagnostics__reachability"
+                [class.diagnostics__word--ok]="port.reachability === reachable"
+                [class.diagnostics__word--error]="port.reachability !== reachable"
+              >
+                {{ port.reachability }}
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      } } @else {
+      <p class="diagnostics__message">Checking…</p>
+      }
+      <div class="diagnostics__actions">
+        <button class="diagnostics__check" type="button" [disabled]="!!running() || checking()" (click)="checkAgain()">
+          {{ checking() ? 'Checking…' : 'Check again' }}
+        </button>
+      </div>
+    </div>
+    }
+
+    <div class="diagnostics__box diagnostics__info" data-label="Deployment info">
+      <div class="diagnostics__row">
+        <span>The launcher's full report on this deployment, as JSON.</span>
+        <span class="diagnostics__buttons">
+          <button class="diagnostics__show" type="button" [attr.aria-expanded]="reportShown()" (click)="toggleReport()">
+            {{ reportShown() ? 'Hide' : 'Show' }}
+          </button>
+          <button class="diagnostics__download" type="button" (click)="download()">Download</button>
+        </span>
+      </div>
+      @if (reportError(); as error) {
+      <p class="diagnostics__message diagnostics__message--error">{{ error }}</p>
+      } @else if (reportShown()) { @if (reportText(); as text) {
+      <pre class="diagnostics__report">{{ text }}</pre>
+      } @else {
+      <p class="diagnostics__message">Loading…</p>
+      } }
+    </div>
+  </section>
+</div>

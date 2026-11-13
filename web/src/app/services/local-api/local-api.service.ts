@@ -5,6 +5,8 @@ import {
   Configuration,
   DeploymentDetails,
   DeploymentSummary,
+  DiagnosticReport,
+  LocalRuntime,
   McpClient,
   McpInstructions,
   Operation,
@@ -101,6 +103,18 @@ export class LocalApiService {
 
   private mcpClientsPath(name: string): string {
     return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/mcp/clients`;
+  }
+
+  getLocalRuntime(name: string): Observable<LocalRuntime> {
+    return this.http.get<LocalRuntime>(`${this.diagnosticsPath(name)}/local`);
+  }
+
+  getDiagnosticReport(name: string): Observable<DiagnosticReport> {
+    return this.http.get<DiagnosticReport>(`${this.diagnosticsPath(name)}/info`);
+  }
+
+  private diagnosticsPath(name: string): string {
+    return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/diagnostics`;
   }
 
   listOperations(): Observable<Operation[]> {

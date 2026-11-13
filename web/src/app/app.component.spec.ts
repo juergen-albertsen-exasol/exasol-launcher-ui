@@ -6,6 +6,7 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { Store, provideStore } from '@ngxs/store';
 import { firstValueFrom } from 'rxjs';
 import { NAV_ITEMS, NotificationsState } from '@exasol/ui-common';
+import { DiagnosticsState } from '@exa/store/diagnostics/diagnostics.state';
 import { OperationsPollingService } from '@exa/store/operations/operations-polling.service';
 import { OperationsState } from '@exa/store/operations/operations.state';
 import { AppComponent } from './app.component';
@@ -42,6 +43,7 @@ describe('AppComponent', () => {
           SettingsState,
           SidecarsState,
           ScriptLanguagesState,
+          DiagnosticsState,
         ]),
         provideLocalApi({ deployments: [summary('default'), summary('test')], operations: [operation()] }),
         { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
@@ -101,6 +103,7 @@ describe('AppComponent', () => {
         'MCP server',
         'Script languages',
         'Settings',
+        'Diagnostics',
       ]);
       expect(active.map(link => link.nativeElement.getAttribute('href'))).toEqual(['/deployments/test/overview']);
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Overview');
@@ -124,6 +127,16 @@ describe('AppComponent', () => {
       expect(TestBed.inject(Router).url).toBe('/deployments/test/script-languages');
       expect(root.query(By.css('exa-page-script-languages'))).toBeTruthy();
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Script languages');
+    });
+
+    it('opens the Diagnostics page from the navigation drawer', async () => {
+      root.query(By.css('.nav-content-wrapper a[href="/deployments/test/diagnostics"]')).nativeElement.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(Router).url).toBe('/deployments/test/diagnostics');
+      expect(root.query(By.css('exa-page-diagnostics'))).toBeTruthy();
+      expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Diagnostics');
     });
 
     it('opens the Settings page from the navigation drawer', async () => {

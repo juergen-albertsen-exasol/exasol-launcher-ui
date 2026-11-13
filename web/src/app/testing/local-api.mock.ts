@@ -4,6 +4,8 @@ import {
   Configuration,
   DeploymentDetails,
   DeploymentSummary,
+  DiagnosticReport,
+  LocalRuntime,
   McpClient,
   McpInstructions,
   Operation,
@@ -41,6 +43,10 @@ export interface LocalApiFixture {
   scriptLanguages?: { [name: string]: ScriptLanguages };
   /** Messages with which the API refuses to list a deployment's script languages. */
   scriptLanguageRefusals?: { [name: string]: string };
+  localRuntimes?: { [name: string]: LocalRuntime };
+  /** Messages with which the API refuses to report a deployment's local runtime. */
+  localRuntimeRefusals?: { [name: string]: string };
+  reports?: { [name: string]: DiagnosticReport };
 }
 
 export const MCP_CLIENTS: McpClient[] = [
@@ -135,6 +141,33 @@ export const defaultScriptLanguages = (): ScriptLanguages => ({
   custom: [{ alias: 'MYPY3', language: 'python', source: '/Users/me/containers/my-python.tar.gz', available: true }],
 });
 
+export const runningLocalRuntime = (): LocalRuntime => ({
+  platform: 'darwin/arm64',
+  platform_supported: true,
+  vm_running: true,
+  database_ready: true,
+  ports: [
+    { name: 'db', host_port: 8563, reachability: 'reachable' },
+    { name: 'sidecar mcp', host_port: 4896, reachability: 'reachable' },
+  ],
+});
+
+export const stoppedLocalRuntime = (): LocalRuntime => ({
+  platform: 'darwin/arm64',
+  platform_supported: true,
+  vm_running: false,
+  message:
+    'The platform is ready to run the local deployment. Run `exasol start` to start it, ' +
+    'then run `exasol diag local` again for more detail.',
+  ports: [],
+});
+
+export const diagnosticReport = (): DiagnosticReport => ({
+  backend: 'local',
+  deploymentState: 'running',
+  connection: { host: '127.0.0.1', dbPort: 8563, username: 'sys' },
+});
+
 export const localConfiguration = (overrides: Partial<Configuration> = {}): Configuration => ({
   infrastructure: {
     name: 'local',
@@ -195,6 +228,11 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
     const refusal = fixture.scriptLanguageRefusals?.[name];
     return refusal ? conflict(refusal) : of(fixture.scriptLanguages?.[name] ?? defaultScriptLanguages());
   }),
+  getLocalRuntime: jest.fn((name: string) => {
+    const refusal = fixture.localRuntimeRefusals?.[name];
+    return refusal ? conflict(refusal) : of(fixture.localRuntimes?.[name] ?? runningLocalRuntime());
+  }),
+  getDiagnosticReport: jest.fn((name: string) => of(fixture.reports?.[name] ?? diagnosticReport())),
   listMcpClients: jest.fn(() => of(MCP_CLIENTS)),
   getMcpInstructions: jest.fn((name: string, client: string) => of(mcpInstructions(client))),
   pingDeployment: jest.fn((name: string) => of(fixture.pings?.[name] ?? { status: 'reachable', round_trip_ms: 5 })),
