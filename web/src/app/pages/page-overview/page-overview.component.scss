@@ -1,4 +1,5 @@
 @import 'colors';
+@import 'panels';
 
 .overview {
   gap: 24px;
@@ -70,33 +71,11 @@
   }
 
   &__details {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    padding: 30px 20px 20px;
-    border: 1px solid var(--primary-accent);
-    background-color: var(--background-secondary);
-    color: var(--text-primary);
-    box-shadow: inset 0 6px 12px -10px #000;
+    @include detail-panel;
   }
 
   &__box {
-    position: relative;
-    padding: 15px;
-    border: 1px solid var(--frame-color);
-    border-radius: 5px;
-    font-size: 0.88rem;
-
-    &::before {
-      content: attr(data-label);
-      position: absolute;
-      top: -10px;
-      left: 15px;
-      padding: 0 10px;
-      background-color: var(--background-secondary);
-      color: var(--text-secondary);
-      font-size: 0.81rem;
-    }
+    @include info-box;
   }
 
   &__rows {
@@ -153,23 +132,7 @@
   }
 
   &__outline {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 30px;
-    padding: 0 16px;
-    border: 1px solid var(--primary-accent);
-    border-radius: 4px;
-    background: transparent;
-    color: var(--primary-accent);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: 2px solid #2e6fee;
-      outline-offset: 3px;
-    }
+    @include outline-button;
   }
 
   &__button-icon {

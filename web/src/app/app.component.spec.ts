@@ -9,10 +9,11 @@ import { NAV_ITEMS, NotificationsState } from '@exasol/ui-common';
 import { OperationsPollingService } from '@exa/store/operations/operations-polling.service';
 import { OperationsState } from '@exa/store/operations/operations.state';
 import { AppComponent } from './app.component';
-import { APP_NAV_ITEMS, appRoutes } from './routes';
+import { APP_NAV_ITEMS, appRoutes, withAppRouterConfig } from './routes';
 import { SessionService } from './services/session/session.service';
 import { DeploymentsState } from './store/deployments/deployments.state';
 import { LoadOperationsAction } from './store/operations/operations.actions';
+import { SettingsState } from './store/settings/settings.state';
 import { operation, provideLocalApi, summary } from './testing/local-api.mock';
 
 describe('AppComponent', () => {
@@ -30,9 +31,9 @@ describe('AppComponent', () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [
-        provideRouter(appRoutes, withComponentInputBinding()),
+        provideRouter(appRoutes, withComponentInputBinding(), withAppRouterConfig()),
         provideNoopAnimations(),
-        provideStore([NotificationsState, DeploymentsState, OperationsState]),
+        provideStore([NotificationsState, DeploymentsState, OperationsState, SettingsState]),
         provideLocalApi({ deployments: [summary('default'), summary('test')], operations: [operation()] }),
         { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
         { provide: OperationsPollingService, useValue: { start: jest.fn() } },
@@ -81,12 +82,26 @@ describe('AppComponent', () => {
       expect(root.query(By.css('header .controls exa-deployment-selector'))).toBeTruthy();
     });
 
-    it('lists the Overview page of the deployment as the current navigation item', () => {
-      const active = root.query(By.css('.nav-content-wrapper a.active'));
+    it('lists the Overview and Settings pages of the deployment, with Overview as the current page', () => {
+      const links = root.queryAll(By.css('.nav-content-wrapper a[href^="/deployments"]'));
+      const active = root.queryAll(By.css('.nav-content-wrapper a.active'));
 
-      expect(active.nativeElement.textContent).toContain('Overview');
-      expect(active.nativeElement.getAttribute('href')).toBe('/deployments/test');
+      expect(links.map(link => link.nativeElement.textContent.trim())).toEqual(['Overview', 'Settings']);
+      expect(active.map(link => link.nativeElement.getAttribute('href'))).toEqual(['/deployments/test/overview']);
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Overview');
+    });
+
+    it('opens the Settings page from the navigation drawer', async () => {
+      const settings = root.query(By.css('.nav-content-wrapper a[href="/deployments/test/settings"]'));
+      settings.nativeElement.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const active = root.queryAll(By.css('.nav-content-wrapper a.active'));
+      expect(TestBed.inject(Router).url).toBe('/deployments/test/settings');
+      expect(root.query(By.css('exa-page-settings'))).toBeTruthy();
+      expect(active.map(link => link.nativeElement.textContent.trim())).toEqual(['Settings']);
+      expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Settings');
     });
   });
 

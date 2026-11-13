@@ -1,32 +1,62 @@
-import { Route } from '@angular/router';
+import { ActivatedRouteSnapshot, Route, withRouterConfig } from '@angular/router';
 import { NavItem } from '@exasol/ui-common';
 import { PageDeploymentsComponent } from './pages/page-deployments/page-deployments.component';
 import { PageOverviewComponent } from './pages/page-overview/page-overview.component';
+import { PageSettingsComponent } from './pages/page-settings/page-settings.component';
 import { ShellComponent } from './shell/shell.component';
 
 export const LocalRoutes = {
   deployments: 'deployments',
 } as const;
 
-const NavItemsKeys = {
+export const DeploymentPage = {
   OVERVIEW: 'overview',
+  SETTINGS: 'settings',
 } as const;
+export type DeploymentPage = (typeof DeploymentPage)[keyof typeof DeploymentPage];
 
-export const overviewPath = (name: string): string[] => ['/', LocalRoutes.deployments, name];
+export const deploymentPath = (name: string, page: DeploymentPage = DeploymentPage.OVERVIEW): string[] => [
+  '/',
+  LocalRoutes.deployments,
+  name,
+  page,
+];
+
+export const overviewPath = (name: string): string[] => deploymentPath(name);
 
 // The layout reads these paths on every render, so updating them retargets the
-// navigation at the selected deployment.
+// navigation at the selected deployment. Its links match by prefix, so every
+// page has its own path segment.
 export const APP_NAV_ITEMS: { [key: string]: NavItem } = {
-  [NavItemsKeys.OVERVIEW]: {
+  [DeploymentPage.OVERVIEW]: {
     path: '',
     faIcon: ['fa-database'],
     text: 'Overview',
   },
+  [DeploymentPage.SETTINGS]: {
+    path: '',
+    faIcon: ['fa-sliders'],
+    text: 'Settings',
+  },
 };
 
 export const setNavDeployment = (name: string): void => {
-  APP_NAV_ITEMS[NavItemsKeys.OVERVIEW].path = `/${LocalRoutes.deployments}/${encodeURIComponent(name)}`;
+  for (const page of Object.values(DeploymentPage)) {
+    APP_NAV_ITEMS[page].path = `/${LocalRoutes.deployments}/${encodeURIComponent(name)}/${page}`;
+  }
 };
+
+/** Pages read the deployment name of the shell route. */
+export const withAppRouterConfig = () => withRouterConfig({ paramsInheritanceStrategy: 'always' });
+
+// The layout shows the title of the top route, so it takes the current page's.
+const pageTitle = (route: ActivatedRouteSnapshot): string => route.firstChild?.data['title'] ?? '';
+
+const page = (path: DeploymentPage, component: Route['component']): Route => ({
+  path,
+  component,
+  data: { title: APP_NAV_ITEMS[path].text },
+});
 
 export const appRoutes: Route[] = [
   {
@@ -36,8 +66,13 @@ export const appRoutes: Route[] = [
   {
     path: `${LocalRoutes.deployments}/:name`,
     component: ShellComponent,
-    data: { title: APP_NAV_ITEMS[NavItemsKeys.OVERVIEW].text },
-    children: [{ path: '', component: PageOverviewComponent }],
+    resolve: { title: pageTitle },
+    runGuardsAndResolvers: 'always',
+    children: [
+      page(DeploymentPage.OVERVIEW, PageOverviewComponent),
+      page(DeploymentPage.SETTINGS, PageSettingsComponent),
+      { path: '', redirectTo: DeploymentPage.OVERVIEW, pathMatch: 'full' },
+    ],
   },
   { path: '', redirectTo: LocalRoutes.deployments, pathMatch: 'full' },
   { path: '**', redirectTo: LocalRoutes.deployments },

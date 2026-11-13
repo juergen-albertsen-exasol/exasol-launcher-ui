@@ -43,7 +43,7 @@ describe('PageDeploymentsComponent', () => {
 
     root.queryAll(By.css('.deployments__tile'))[1].nativeElement.click();
 
-    expect(navigate.mock.calls[0][0].toString()).toBe('/deployments/test');
+    expect(navigate.mock.calls[0][0].toString()).toBe('/deployments/test/overview');
   });
 
   it('explains how to create a deployment when none is listed', async () => {

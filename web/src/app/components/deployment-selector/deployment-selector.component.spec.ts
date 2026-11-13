@@ -55,6 +55,20 @@ describe('DeploymentSelectorComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(navigate).toHaveBeenCalledWith(['/', 'deployments', 'test']);
+    expect(navigate).toHaveBeenCalledWith(['/', 'deployments', 'test', 'overview']);
+  });
+
+  it('keeps the current page when choosing another deployment', async () => {
+    const router = TestBed.inject(Router);
+    const navigate = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+    jest.spyOn(router, 'url', 'get').mockReturnValue('/deployments/default/settings');
+    trigger().nativeElement.click();
+    fixture.detectChanges();
+
+    (overlayContainerElement.querySelectorAll('mat-option')[1] as HTMLElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledWith(['/', 'deployments', 'test', 'settings']);
   });
 });

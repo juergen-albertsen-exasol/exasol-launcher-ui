@@ -16,12 +16,19 @@ import {
   SelectDeploymentAction,
 } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
+import { RUNNING_VERB } from '@exa/store/operations/operation-labels';
 import { LoadOperationsAction, RunOperationAction } from '@exa/store/operations/operations.actions';
 import { OperationsState } from '@exa/store/operations/operations.state';
 
 const STOPPABLE = ['running', 'database_ready', 'database_connection_failed'];
-const RUNNING_STATE: Record<OperationKind, string> = { start: 'starting', stop: 'stopping' };
-const OPERATION_TITLE: Record<OperationKind, string> = { start: 'Starting', stop: 'Stopping' };
+const RUNNING_STATE: Record<OperationKind, string> = {
+  start: 'starting',
+  stop: 'stopping',
+  deploy: 'deploying',
+  destroy: 'destroying',
+  destroy_and_remove: 'destroying',
+  remove: 'removing',
+};
 
 @Component({
   selector: 'exa-page-overview',
@@ -40,7 +47,7 @@ export class PageOverviewComponent {
   readonly readyStatus = DEPLOYMENT_READY_STATUS;
   readonly operationKind = OperationKind;
   readonly runningState = RUNNING_STATE;
-  readonly operationTitle = OPERATION_TITLE;
+  readonly operationTitle = RUNNING_VERB;
   readonly summary = this.store.selectSignal(DeploymentsState.selectedSummary);
   readonly details = this.store.selectSignal(DeploymentsState.selectedDetails);
   readonly detailsError = this.store.selectSignal(DeploymentsState.selectedDetailsError);

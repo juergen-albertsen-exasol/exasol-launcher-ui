@@ -1,0 +1,123 @@
+<div class="page-wrapper settings">
+  @if (loadError(); as error) {
+  <p class="settings__message settings__message--error">{{ error }}</p>
+  } @else if (configuration(); as config) { @if (config.apply_with === 'deploy') {
+  <div class="settings__banner settings__banner--deploy" role="status">
+    <span class="settings__banner-text">
+      <i class="fa-solid fa-circle-info settings__info-icon" aria-hidden="true"></i>
+      This deployment has no resources yet. Deploy creates them with these settings.
+    </span>
+    <exa-button class="settings__deploy" [squared]="true" [shorter]="true" (clickButton)="run('deploy')">
+      Deploy
+    </exa-button>
+  </div>
+  } @else if (config.apply_with === 'start' && unapplied()) {
+  <div class="settings__banner settings__banner--apply" role="status">
+    <span class="settings__banner-text">
+      <i class="fa-solid fa-triangle-exclamation settings__warning-icon" aria-hidden="true"></i>
+      Saved changes take effect when you apply them to the deployment.
+    </span>
+    <exa-button class="settings__apply" [squared]="true" [shorter]="true" (clickButton)="run('start')">
+      Apply changes
+    </exa-button>
+  </div>
+  } @if (!config.editable) {
+  <p class="settings__banner settings__read-only" role="status">
+    <i class="fa-solid fa-circle-info settings__info-icon" aria-hidden="true"></i>
+    @if (local()) {
+    <span>
+      Stop the deployment to change its settings. You can stop it on the
+      <a class="settings__link" [routerLink]="overviewPath()">Overview</a> page.
+    </span>
+    } @else {
+    <span>Destroy the deployment to change its settings.</span>
+    }
+  </p>
+  }
+
+  <section class="settings__panel" aria-label="Settings">
+    <div class="settings__box" data-label="Presets">
+      <dl class="settings__rows">
+        <dt>Infrastructure</dt>
+        <dd class="settings__preset">{{ config.infrastructure.name }}: {{ config.infrastructure.description }}</dd>
+        <dt>Installation</dt>
+        <dd class="settings__preset">{{ config.installation.name }}: {{ config.installation.description }}</dd>
+      </dl>
+    </div>
+
+    @for (kind of presetKinds; track kind) { @if (preset(kind); as preset) {
+    <div class="settings__box settings__options" [attr.data-label]="boxLabel[kind]">
+      @if (preset.options.length) {
+      <div class="settings__fields">
+        <!-- Each loaded configuration renders fresh inputs, which drops abandoned edits. -->
+        @for (option of preset.options; track option) {
+        <div class="settings__field">
+          @switch (typeOf(option)) { @case ('secret') {
+          <label class="settings__label" [for]="kind + '-' + option.name">{{ option.name }}</label>
+          <input
+            class="settings__input"
+            type="password"
+            placeholder="Hidden"
+            disabled
+            [id]="kind + '-' + option.name"
+          />
+          <span class="settings__hint"
+            ><i class="fa-solid fa-lock" aria-hidden="true"></i>Set it with the launcher</span
+          >
+          } @case ('boolean') {
+          <span class="settings__label">{{ option.name }}</span>
+          <label class="settings__check">
+            <input
+              type="checkbox"
+              [name]="option.name"
+              [checked]="valueOf(kind, option)"
+              [disabled]="!config.editable || !!saving()"
+              (change)="edit(kind, option, $any($event.target))"
+            />
+            Enabled
+          </label>
+          } @default {
+          <label class="settings__label" [for]="kind + '-' + option.name">{{ option.name }}</label>
+          <input
+            class="settings__input"
+            [id]="kind + '-' + option.name"
+            [name]="option.name"
+            [type]="typeOf(option)"
+            [value]="valueOf(kind, option)"
+            [disabled]="!config.editable || !!saving()"
+            (input)="edit(kind, option, $any($event.target))"
+          />
+          } }
+        </div>
+        }
+      </div>
+      @if (saveError(); as error) { @if (error.preset === kind) {
+      <p class="settings__save-error" role="alert">
+        <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>{{ error.message }}
+      </p>
+      } } @if (config.editable) {
+      <div class="settings__actions">
+        <button class="settings__reset" type="button" [disabled]="!!saving()" (click)="resetToDefaults(kind)">
+          Reset to defaults…
+        </button>
+        <exa-button
+          class="settings__save"
+          [squared]="true"
+          [shorter]="true"
+          [loading]="saving() === kind"
+          [disabled]="!!saving()"
+          (clickButton)="save(kind)"
+        >
+          Save
+        </exa-button>
+      </div>
+      } } @else {
+      <p class="settings__message">The {{ preset.name }} {{ kind }} preset has no options.</p>
+      }
+    </div>
+    } }
+  </section>
+  } @else {
+  <p class="settings__message">Loading…</p>
+  }
+</div>

@@ -2,10 +2,12 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  Configuration,
   DeploymentDetails,
   DeploymentSummary,
   Operation,
   OperationKind,
+  OptionValue,
   PingResult,
   Problem,
 } from './local-api.models';
@@ -30,7 +32,29 @@ export class LocalApiService {
   }
 
   runOperation(name: string, kind: OperationKind): Observable<Operation> {
-    return this.http.post<Operation>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/${kind}`, null);
+    const deployment = `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}`;
+    switch (kind) {
+      case 'destroy_and_remove':
+        return this.http.post<Operation>(`${deployment}/destroy`, { remove_folder: true });
+      default:
+        return this.http.post<Operation>(`${deployment}/${kind}`, null);
+    }
+  }
+
+  getConfiguration(name: string): Observable<Configuration> {
+    return this.http.get<Configuration>(this.configurationPath(name));
+  }
+
+  setConfiguration(name: string, options: { [option: string]: OptionValue }): Observable<Configuration> {
+    return this.http.patch<Configuration>(this.configurationPath(name), { options });
+  }
+
+  resetConfiguration(name: string, options: string[]): Observable<Configuration> {
+    return this.http.post<Configuration>(`${this.configurationPath(name)}/reset`, { options });
+  }
+
+  private configurationPath(name: string): string {
+    return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/configuration`;
   }
 
   listOperations(): Observable<Operation[]> {

@@ -61,7 +61,7 @@ describe('ActivityComponent', () => {
     expect(items).toHaveLength(2);
     expect(items[0].nativeElement.textContent).toContain('Starting default');
     expect(items[0].nativeElement.textContent).toContain('1m 12s');
-    expect(items[0].query(By.css('a')).nativeElement.getAttribute('href')).toBe('/deployments/default');
+    expect(items[0].query(By.css('a')).nativeElement.getAttribute('href')).toBe('/deployments/default/overview');
     expect(items[1].nativeElement.textContent).toContain('Stopped test');
     expect(items[1].nativeElement.textContent).toContain('2 min ago');
   });

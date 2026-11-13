@@ -54,7 +54,7 @@
       <p class="overview__operation">
         <span class="overview__spinner" aria-hidden="true"></span>
         @if (operation.kind === operationKind.START) { Starting {{ name() }}. The launcher waits up to 30 minutes until
-        the database accepts connections. } @else { Stopping {{ name() }}. }
+        the database accepts connections. } @else { {{ operationTitle[operation.kind] }} {{ name() }}. }
       </p>
       <pre class="overview__log" #log aria-label="Launcher output">{{ lines().join('\n') }}</pre>
     </div>

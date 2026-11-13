@@ -42,6 +42,10 @@ export interface Problem {
 export const OperationKind = {
   START: 'start',
   STOP: 'stop',
+  DEPLOY: 'deploy',
+  DESTROY: 'destroy',
+  DESTROY_AND_REMOVE: 'destroy_and_remove',
+  REMOVE: 'remove',
 } as const;
 export type OperationKind = (typeof OperationKind)[keyof typeof OperationKind];
 
@@ -62,4 +66,33 @@ export interface Operation {
   result?: { deployment_state: string; database_ready: boolean };
   error?: string;
   lines?: string[];
+}
+
+export type OptionValue = string | number | boolean;
+
+export interface ConfigurationOption {
+  name: string;
+  /** Absent for secret options, whose values never reach the browser. */
+  value?: OptionValue;
+  secret: boolean;
+}
+
+export interface ConfigurationPreset {
+  name: string;
+  display_name: string;
+  description: string;
+  options: ConfigurationOption[];
+}
+
+export const PresetKind = {
+  INFRASTRUCTURE: 'infrastructure',
+  INSTALLATION: 'installation',
+} as const;
+export type PresetKind = (typeof PresetKind)[keyof typeof PresetKind];
+
+export interface Configuration {
+  infrastructure: ConfigurationPreset;
+  installation: ConfigurationPreset;
+  editable: boolean;
+  apply_with?: 'start' | 'deploy';
 }

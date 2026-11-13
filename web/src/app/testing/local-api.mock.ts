@@ -1,5 +1,6 @@
 import { of } from 'rxjs';
 import {
+  Configuration,
   DeploymentDetails,
   DeploymentSummary,
   Operation,
@@ -27,7 +28,31 @@ export interface LocalApiFixture {
   details?: { [name: string]: DeploymentDetails };
   pings?: { [name: string]: PingResult };
   operations?: Operation[];
+  configurations?: { [name: string]: Configuration };
 }
+
+export const localConfiguration = (overrides: Partial<Configuration> = {}): Configuration => ({
+  infrastructure: {
+    name: 'local',
+    display_name: 'Exasol Local',
+    description: 'Exasol Local deployment using a macOS VM.',
+    options: [
+      { name: 'cpu-count', value: 2, secret: false },
+      { name: 'data-size-gb', value: 100, secret: false },
+      { name: 'memory-mb', value: 24576, secret: false },
+      { name: 'ports', value: 'db:8563', secret: false },
+    ],
+  },
+  installation: {
+    name: 'local',
+    display_name: 'Exasol Local',
+    description: 'Uses the Exasol Local database container.',
+    options: [],
+  },
+  editable: true,
+  apply_with: 'start',
+  ...overrides,
+});
 
 export const operation = (overrides: Partial<Operation> = {}): Operation => ({
   id: 'op-1',
@@ -45,6 +70,9 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
   listOperations: jest.fn(() => of(fixture.operations ?? [])),
   getOperation: jest.fn((id: string) => of((fixture.operations ?? []).find(op => op.id === id) ?? operation({ id }))),
   runOperation: jest.fn((name: string, kind: OperationKind) => of(operation({ id: 'new', deployment: name, kind }))),
+  getConfiguration: jest.fn((name: string) => of(fixture.configurations?.[name] ?? localConfiguration())),
+  setConfiguration: jest.fn((name: string) => of(fixture.configurations?.[name] ?? localConfiguration())),
+  resetConfiguration: jest.fn((name: string) => of(fixture.configurations?.[name] ?? localConfiguration())),
   pingDeployment: jest.fn((name: string) => of(fixture.pings?.[name] ?? { status: 'reachable', round_trip_ms: 5 })),
 });
 

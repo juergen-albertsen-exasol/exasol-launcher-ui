@@ -1,8 +1,30 @@
 import { Operation, OperationKind, OperationStatus } from '@exa/services/local-api/local-api.models';
 
-const RUNNING_VERB: Record<OperationKind, string> = { start: 'Starting', stop: 'Stopping' };
-const DONE_VERB: Record<OperationKind, string> = { start: 'Started', stop: 'Stopped' };
-const NOUN: Record<OperationKind, string> = { start: 'Start', stop: 'Stop' };
+/** What a running operation does, followed by the deployment name. */
+export const RUNNING_VERB: Record<OperationKind, string> = {
+  start: 'Starting',
+  stop: 'Stopping',
+  deploy: 'Deploying',
+  destroy: 'Destroying',
+  destroy_and_remove: 'Destroying and removing',
+  remove: 'Removing the folder of',
+};
+const DONE_VERB: Record<OperationKind, string> = {
+  start: 'Started',
+  stop: 'Stopped',
+  deploy: 'Deployed',
+  destroy: 'Destroyed',
+  destroy_and_remove: 'Destroyed and removed',
+  remove: 'Removed the folder of',
+};
+const NOUN: Record<OperationKind, string> = {
+  start: 'Start',
+  stop: 'Stop',
+  deploy: 'Deploy',
+  destroy: 'Destroy',
+  destroy_and_remove: 'Destroy and removal',
+  remove: 'Folder removal',
+};
 
 /** Names an operation as the activity indicator and panel show it. */
 export const operationLabel = (operation: Operation): string => {

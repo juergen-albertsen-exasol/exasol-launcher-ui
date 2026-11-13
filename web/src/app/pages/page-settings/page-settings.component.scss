@@ -1,0 +1,165 @@
+@import 'colors';
+@import 'panels';
+
+.settings {
+  gap: 24px;
+  padding-top: 24px;
+
+  &__banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+
+    &--apply {
+      border-color: #ffcc33;
+    }
+
+    &--deploy {
+      border-color: var(--primary-accent);
+    }
+  }
+
+  &__read-only {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  &__banner-text {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__info-icon {
+    color: var(--primary-accent);
+  }
+
+  &__warning-icon {
+    color: #e78b48;
+  }
+
+  &__link {
+    color: var(--primary-accent);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__panel {
+    @include detail-panel;
+  }
+
+  &__box {
+    @include info-box;
+  }
+
+  &__rows {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 12px;
+    margin: 0;
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    align-items: start;
+    gap: 16px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__label {
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+  }
+
+  &__input {
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1rem;
+
+    &:disabled {
+      background-color: var(--background-primary);
+      color: var(--text-secondary);
+    }
+  }
+
+  &__hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+  }
+
+  &__check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+
+    input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+  }
+
+  &__save-error {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 16px;
+    overflow-wrap: anywhere;
+
+    i {
+      color: $red;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  &__reset {
+    @include outline-button;
+  }
+
+  &__message {
+    color: var(--text-secondary);
+
+    &--error {
+      color: var(--text-primary);
+      overflow-wrap: anywhere;
+    }
+  }
+}
