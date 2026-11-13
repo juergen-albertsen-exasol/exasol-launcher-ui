@@ -10,6 +10,7 @@ import {
   OptionValue,
   PingResult,
   Problem,
+  Sidecar,
 } from './local-api.models';
 
 export const API_BASE_PATH = '/api/v1';
@@ -31,11 +32,18 @@ export class LocalApiService {
     return this.http.post<void>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/open-folder`, null);
   }
 
-  runOperation(name: string, kind: OperationKind): Observable<Operation> {
+  runOperation(name: string, kind: OperationKind, sidecar = ''): Observable<Operation> {
     const deployment = `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}`;
+    const sidecarPath = `${deployment}/sidecars/${encodeURIComponent(sidecar)}`;
     switch (kind) {
       case 'destroy_and_remove':
         return this.http.post<Operation>(`${deployment}/destroy`, { remove_folder: true });
+      case 'enable_sidecar':
+        return this.http.post<Operation>(`${sidecarPath}/enable`, null);
+      case 'disable_sidecar':
+        return this.http.post<Operation>(`${sidecarPath}/disable`, null);
+      case 'remove_sidecar':
+        return this.http.post<Operation>(`${sidecarPath}/disable`, { remove_definition: true });
       default:
         return this.http.post<Operation>(`${deployment}/${kind}`, null);
     }
@@ -55,6 +63,10 @@ export class LocalApiService {
 
   private configurationPath(name: string): string {
     return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/configuration`;
+  }
+
+  listSidecars(name: string): Observable<Sidecar[]> {
+    return this.http.get<Sidecar[]>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/sidecars`);
   }
 
   listOperations(): Observable<Operation[]> {

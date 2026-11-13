@@ -46,6 +46,9 @@ export const OperationKind = {
   DESTROY: 'destroy',
   DESTROY_AND_REMOVE: 'destroy_and_remove',
   REMOVE: 'remove',
+  ENABLE_SIDECAR: 'enable_sidecar',
+  DISABLE_SIDECAR: 'disable_sidecar',
+  REMOVE_SIDECAR: 'remove_sidecar',
 } as const;
 export type OperationKind = (typeof OperationKind)[keyof typeof OperationKind];
 
@@ -60,6 +63,8 @@ export interface Operation {
   id: string;
   deployment: string;
   kind: OperationKind;
+  /** The sidecar that sidecar operations act on. */
+  sidecar?: string;
   status: OperationStatus;
   started_at: string;
   finished_at?: string;
@@ -95,4 +100,32 @@ export interface Configuration {
   installation: ConfigurationPreset;
   editable: boolean;
   apply_with?: 'start' | 'deploy';
+}
+
+export const SidecarHealth = {
+  SERVING: 'serving',
+  STARTING: 'starting',
+  FAILING: 'failing',
+} as const;
+export type SidecarHealth = (typeof SidecarHealth)[keyof typeof SidecarHealth] | '';
+
+export interface SidecarEndpoint {
+  ip: string;
+  port: number;
+  url?: string;
+}
+
+export interface Sidecar {
+  name: string;
+  description?: string;
+  catalog: boolean;
+  enabled: boolean;
+  running: boolean;
+  state: string;
+  health: SidecarHealth;
+  health_error?: string;
+  error?: string;
+  last_operation_error?: string;
+  restart_required: boolean;
+  endpoints: SidecarEndpoint[];
 }

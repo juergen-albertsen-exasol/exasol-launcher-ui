@@ -14,6 +14,17 @@ describe('operation labels', () => {
     expect(operationLabel(operation({ kind: 'remove' }))).toBe('Removing the folder of default');
   });
 
+  it('names the sidecar of sidecar operations', () => {
+    expect(operationLabel(operation({ kind: 'enable_sidecar', sidecar: 'mcp' }))).toBe('Enabling mcp on default');
+    expect(operationLabel(operation({ kind: 'disable_sidecar', sidecar: 'kafka', status: 'succeeded' }))).toBe(
+      'Disabled kafka on default'
+    );
+    expect(operationLabel(operation({ kind: 'remove_sidecar', sidecar: 'kafka' }))).toBe('Removing kafka from default');
+    expect(operationLabel(operation({ kind: 'enable_sidecar', sidecar: 'mcp', status: 'failed' }))).toBe(
+      'Enabling mcp on default failed'
+    );
+  });
+
   it('formats durations and ages', () => {
     expect(formatDuration(45_000)).toBe('45s');
     expect(formatDuration(72_000)).toBe('1m 12s');

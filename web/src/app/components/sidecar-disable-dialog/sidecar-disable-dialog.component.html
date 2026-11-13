@@ -1,0 +1,23 @@
+<section class="sidecar-disable-dialog" role="dialog" aria-labelledby="sidecar-disable-dialog-title">
+  <header class="sidecar-disable-dialog__header">
+    <h2 class="sidecar-disable-dialog__title" id="sidecar-disable-dialog-title">
+      Disable {{ data.sidecar }} on {{ data.deployment }}?
+    </h2>
+  </header>
+  <div class="sidecar-disable-dialog__body">
+    <p>Disabling removes the sidecar's runtime resources. Its saved definition stays, so you can enable it again.</p>
+    <label class="sidecar-disable-dialog__check">
+      <input
+        class="sidecar-disable-dialog__remove"
+        type="checkbox"
+        [checked]="removeDefinition()"
+        (change)="removeDefinition.set($any($event.target).checked)"
+      />
+      <span>Also delete the saved definition</span>
+    </label>
+  </div>
+  <footer class="sidecar-disable-dialog__footer">
+    <button class="sidecar-disable-dialog__cancel" type="button" (click)="cancel()">Cancel</button>
+    <button class="sidecar-disable-dialog__confirm" type="button" (click)="confirm()">Disable</button>
+  </footer>
+</section>

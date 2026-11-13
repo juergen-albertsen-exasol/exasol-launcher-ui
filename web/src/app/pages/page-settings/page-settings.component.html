@@ -2,7 +2,7 @@
   @if (failed(); as operation) {
   <p class="settings__failure" role="alert">
     <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
-    <span>{{ runningVerb[operation.kind] }} {{ operation.deployment }} failed: {{ operation.error }}</span>
+    <span>{{ runningLabel(operation) }} failed: {{ operation.error }}</span>
   </p>
   } @if (running(); as operation) {
   <section class="settings__panel" aria-label="Operation">

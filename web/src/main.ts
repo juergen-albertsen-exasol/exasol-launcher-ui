@@ -12,6 +12,7 @@ import { sessionInterceptor } from '@exa/services/session/session.interceptor';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
 import { OperationsState } from '@exa/store/operations/operations.state';
 import { SettingsState } from '@exa/store/settings/settings.state';
+import { SidecarsState } from '@exa/store/sidecars/sidecars.state';
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -25,7 +26,7 @@ bootstrapApplication(AppComponent, {
     ),
     provideHttpClient(withInterceptors([sessionInterceptor])),
     provideAnimations(),
-    provideStore([NotificationsState, DeploymentsState, OperationsState, SettingsState]),
+    provideStore([NotificationsState, DeploymentsState, OperationsState, SettingsState, SidecarsState]),
     { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
   ],
 }).catch(err => console.error(err));

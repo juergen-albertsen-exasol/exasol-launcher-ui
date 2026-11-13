@@ -31,6 +31,22 @@ describe('LocalApiService', () => {
     requests.forEach(request => request.flush({}));
   });
 
+  it('lists sidecars and runs sidecar operations on their endpoints', () => {
+    service.listSidecars('default').subscribe();
+    service.runOperation('default', 'enable_sidecar', 'dash-server').subscribe();
+    service.runOperation('default', 'disable_sidecar', 'kafka').subscribe();
+    service.runOperation('default', 'remove_sidecar', 'kafka').subscribe();
+
+    const requests = http.match(() => true);
+    expect(requests.map(request => [request.request.method, request.request.url, request.request.body])).toEqual([
+      ['GET', '/api/v1/deployments/default/sidecars', null],
+      ['POST', '/api/v1/deployments/default/sidecars/dash-server/enable', null],
+      ['POST', '/api/v1/deployments/default/sidecars/kafka/disable', null],
+      ['POST', '/api/v1/deployments/default/sidecars/kafka/disable', { remove_definition: true }],
+    ]);
+    requests.forEach(request => request.flush({}));
+  });
+
   it('reads, patches, and resets the configuration', () => {
     service.getConfiguration('my deployment').subscribe();
     service.setConfiguration('default', { 'cpu-count': 4 }).subscribe();

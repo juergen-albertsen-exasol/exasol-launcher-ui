@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Store } from '@ngxs/store';
-import { overviewPath } from '@exa/routes';
+import { DeploymentPage, deploymentPath } from '@exa/routes';
 import { Operation, OperationStatus } from '@exa/services/local-api/local-api.models';
 import { formatAgo, formatDuration, operationLabel } from '@exa/store/operations/operation-labels';
 import { OperationsState } from '@exa/store/operations/operations.state';
@@ -36,7 +36,8 @@ export class ActivityComponent {
   readonly open = signal(false);
   private readonly now = signal(Date.now());
 
-  readonly overviewPath = overviewPath;
+  readonly progressPath = (operation: Operation): string[] =>
+    deploymentPath(operation.deployment, operation.sidecar ? DeploymentPage.SIDECARS : DeploymentPage.OVERVIEW);
   readonly succeeded = OperationStatus.SUCCEEDED;
   readonly label = operationLabel;
 

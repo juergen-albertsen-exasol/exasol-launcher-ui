@@ -1,6 +1,6 @@
 import { Operation, OperationKind, OperationStatus } from '@exa/services/local-api/local-api.models';
 
-/** What a running operation does, followed by the deployment name. */
+/** What a running operation does, followed by what it acts on. */
 export const RUNNING_VERB: Record<OperationKind, string> = {
   start: 'Starting',
   stop: 'Stopping',
@@ -8,6 +8,9 @@ export const RUNNING_VERB: Record<OperationKind, string> = {
   destroy: 'Destroying',
   destroy_and_remove: 'Destroying and removing',
   remove: 'Removing the folder of',
+  enable_sidecar: 'Enabling',
+  disable_sidecar: 'Disabling',
+  remove_sidecar: 'Removing',
 };
 const DONE_VERB: Record<OperationKind, string> = {
   start: 'Started',
@@ -16,8 +19,23 @@ const DONE_VERB: Record<OperationKind, string> = {
   destroy: 'Destroyed',
   destroy_and_remove: 'Destroyed and removed',
   remove: 'Removed the folder of',
+  enable_sidecar: 'Enabled',
+  disable_sidecar: 'Disabled',
+  remove_sidecar: 'Removed',
 };
-const NOUN: Record<OperationKind, string> = {
+/** What a request for an operation asks for, as in "Cannot start default". */
+export const ACTION: Record<OperationKind, string> = {
+  start: 'start',
+  stop: 'stop',
+  deploy: 'deploy',
+  destroy: 'destroy',
+  destroy_and_remove: 'destroy and remove',
+  remove: 'remove the folder of',
+  enable_sidecar: 'enable',
+  disable_sidecar: 'disable',
+  remove_sidecar: 'remove',
+};
+const NOUN: Partial<Record<OperationKind, string>> = {
   start: 'Start',
   stop: 'Stop',
   deploy: 'Deploy',
@@ -26,15 +44,29 @@ const NOUN: Record<OperationKind, string> = {
   remove: 'Folder removal',
 };
 
+/** What an operation acts on: the deployment, or a sidecar of it. */
+const subject = (operation: Operation): string => {
+  if (!operation.sidecar) {
+    return operation.deployment;
+  }
+  const preposition = operation.kind === OperationKind.REMOVE_SIDECAR ? 'from' : 'on';
+  return `${operation.sidecar} ${preposition} ${operation.deployment}`;
+};
+
+/** Names a running operation, as in "Starting default" or "Enabling mcp on default". */
+export const runningLabel = (operation: Operation): string => `${RUNNING_VERB[operation.kind]} ${subject(operation)}`;
+
 /** Names an operation as the activity indicator and panel show it. */
 export const operationLabel = (operation: Operation): string => {
   switch (operation.status) {
     case OperationStatus.RUNNING:
-      return `${RUNNING_VERB[operation.kind]} ${operation.deployment}`;
+      return runningLabel(operation);
     case OperationStatus.SUCCEEDED:
-      return `${DONE_VERB[operation.kind]} ${operation.deployment}`;
-    default:
-      return `${NOUN[operation.kind]} of ${operation.deployment} failed`;
+      return `${DONE_VERB[operation.kind]} ${subject(operation)}`;
+    default: {
+      const noun = NOUN[operation.kind];
+      return noun ? `${noun} of ${operation.deployment} failed` : `${runningLabel(operation)} failed`;
+    }
   }
 };
 

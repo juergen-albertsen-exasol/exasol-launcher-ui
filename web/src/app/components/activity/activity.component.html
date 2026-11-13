@@ -20,7 +20,7 @@
         <strong>{{ label(operation) }}</strong>
         <span class="activity__time">{{ elapsed(operation) }}</span>
       </span>
-      <a class="activity__link" [routerLink]="overviewPath(operation.deployment)" (click)="close()">Show progress</a>
+      <a class="activity__link" [routerLink]="progressPath(operation)" (click)="close()">Show progress</a>
     </li>
     } @for (operation of finished(); track operation.id) {
     <li class="activity__item activity__item--finished">

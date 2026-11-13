@@ -23,7 +23,7 @@ import {
   SelectDeploymentAction,
 } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
-import { RUNNING_VERB } from '@exa/store/operations/operation-labels';
+import { runningLabel } from '@exa/store/operations/operation-labels';
 import { RunOperationAction } from '@exa/store/operations/operations.actions';
 import { OperationsState } from '@exa/store/operations/operations.state';
 import {
@@ -74,7 +74,7 @@ export class PageSettingsComponent {
   readonly local = computed(() => this.configuration()?.infrastructure.name === LOCAL_PRESET);
   readonly drafts = signal<Drafts>({});
 
-  readonly runningVerb = RUNNING_VERB;
+  readonly runningLabel = runningLabel;
   readonly summary = this.store.selectSignal(DeploymentsState.selectedSummary);
   // Nothing exists to destroy before the deployment is initialized.
   readonly canDestroy = computed(() => this.summary()?.status !== NOT_INITIALIZED);

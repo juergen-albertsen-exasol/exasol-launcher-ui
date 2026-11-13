@@ -2,7 +2,7 @@ import { Component, ElementRef, computed, effect, inject, input, signal, untrack
 import { Store } from '@ngxs/store';
 import { Operation, OperationKind } from '@exa/services/local-api/local-api.models';
 import { OperationEventsService } from '@exa/services/local-api/operation-events.service';
-import { RUNNING_VERB } from '@exa/store/operations/operation-labels';
+import { RUNNING_VERB, runningLabel } from '@exa/store/operations/operation-labels';
 import { LoadOperationsAction } from '@exa/store/operations/operations.actions';
 
 /** Shows a running operation with the launcher output it streams. */
@@ -20,6 +20,7 @@ export class OperationProgressComponent {
 
   readonly operationKind = OperationKind;
   readonly title = computed(() => RUNNING_VERB[this.operation().kind]);
+  readonly label = computed(() => runningLabel(this.operation()));
   readonly lines = signal<string[]>([]);
 
   constructor() {

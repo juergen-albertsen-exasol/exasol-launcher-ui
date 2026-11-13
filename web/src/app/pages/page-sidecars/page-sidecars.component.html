@@ -1,0 +1,118 @@
+<div class="page-wrapper sidecars">
+  @if (failed(); as operation) {
+  <p class="sidecars__failure" role="alert">
+    <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+    <span>{{ runningLabel(operation) }} failed: {{ operation.error }}</span>
+  </p>
+  } @if (running(); as operation) {
+  <section class="sidecars__panel" aria-label="Operation">
+    <exa-operation-progress [operation]="operation"></exa-operation-progress>
+  </section>
+  } @if (loadError(); as error) {
+  <p class="sidecars__message sidecars__message--error">{{ error }}</p>
+  } @else if (sidecars(); as sidecars) { @if (deploymentStopped()) {
+  <p class="sidecars__banner" role="status">
+    <i class="fa-solid fa-circle-info sidecars__info-icon" aria-hidden="true"></i>
+    <span>The deployment is not running. Sidecar changes take effect when it starts.</span>
+  </p>
+  }
+  <section class="sidecars__panel" aria-label="Sidecars">
+    <div class="sidecars__box" [attr.data-label]="'Sidecars of ' + name()">
+      @if (sidecars.length) {
+      <div class="sidecars__scroll">
+        <table class="sidecars__table">
+          <thead>
+            <tr>
+              <th>Sidecar</th>
+              <th>Description</th>
+              <th>State</th>
+              <th>Health</th>
+              <th>Endpoint</th>
+              <th><span class="sidecars__hidden">Action</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (sidecar of sidecars; track sidecar.name) {
+            <tr class="sidecars__row" [class.sidecars__row--with-problems]="problems(sidecar).length">
+              <td class="sidecars__name">
+                <strong>{{ sidecar.name }}</strong>
+              </td>
+              <td class="sidecars__description">{{ sidecar.description }}</td>
+              <td class="sidecars__state">
+                @if (!sidecar.enabled) {
+                <span class="sidecars__word">disabled</span>
+                } @else if (sidecar.running) {
+                <span class="sidecars__word sidecars__word--ok"
+                  ><span class="sidecars__dot"></span>{{ sidecar.state }}</span
+                >
+                } @else {
+                <span class="sidecars__word">{{ sidecar.state }}</span>
+                }
+              </td>
+              <td class="sidecars__health">
+                @switch (sidecar.health) { @case (health.SERVING) {
+                <span class="sidecars__word sidecars__word--ok">healthy</span>
+                } @case (health.STARTING) {
+                <span class="sidecars__word">starting</span>
+                } @case (health.FAILING) {
+                <span class="sidecars__word sidecars__word--error">
+                  <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>failing
+                </span>
+                } }
+              </td>
+              <td>
+                <div class="sidecars__endpoints">
+                  @for (endpoint of sidecar.endpoints; track $index) { @if (endpoint.url) {
+                  <a class="sidecars__link" [href]="endpoint.url" target="_blank" rel="noopener">{{
+                    endpointText(endpoint)
+                  }}</a>
+                  } @else {
+                  <span>{{ endpointText(endpoint) }}</span>
+                  } }
+                </div>
+              </td>
+              <td class="sidecars__action">
+                @if (sidecar.enabled) {
+                <button class="sidecars__disable" type="button" [disabled]="!!running()" (click)="disable(sidecar)">
+                  Disable…
+                </button>
+                } @else {
+                <exa-button
+                  class="sidecars__enable"
+                  [squared]="true"
+                  [shorter]="true"
+                  [disabled]="!!running()"
+                  (clickButton)="enable(sidecar)"
+                >
+                  Enable
+                </exa-button>
+                }
+              </td>
+            </tr>
+            @if (problems(sidecar).length) {
+            <tr class="sidecars__problems">
+              <td colspan="6">
+                @for (problem of problems(sidecar); track $index) {
+                <p class="sidecars__problem">
+                  <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>{{ problem }}
+                </p>
+                }
+              </td>
+            </tr>
+            } }
+          </tbody>
+        </table>
+      </div>
+      } @else {
+      <p class="sidecars__message">The deployment has no sidecars.</p>
+      }
+      <p class="sidecars__note">
+        Disabling removes a sidecar's runtime resources; you can also delete its saved definition. Enabling waits until
+        the sidecar serves.
+      </p>
+    </div>
+  </section>
+  } @else {
+  <p class="sidecars__message">Loading…</p>
+  }
+</div>

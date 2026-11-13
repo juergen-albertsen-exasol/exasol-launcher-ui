@@ -14,6 +14,7 @@ import { SessionService } from './services/session/session.service';
 import { DeploymentsState } from './store/deployments/deployments.state';
 import { LoadOperationsAction } from './store/operations/operations.actions';
 import { SettingsState } from './store/settings/settings.state';
+import { SidecarsState } from './store/sidecars/sidecars.state';
 import { operation, provideLocalApi, summary } from './testing/local-api.mock';
 
 describe('AppComponent', () => {
@@ -33,7 +34,7 @@ describe('AppComponent', () => {
       providers: [
         provideRouter(appRoutes, withComponentInputBinding(), withAppRouterConfig()),
         provideNoopAnimations(),
-        provideStore([NotificationsState, DeploymentsState, OperationsState, SettingsState]),
+        provideStore([NotificationsState, DeploymentsState, OperationsState, SettingsState, SidecarsState]),
         provideLocalApi({ deployments: [summary('default'), summary('test')], operations: [operation()] }),
         { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
         { provide: OperationsPollingService, useValue: { start: jest.fn() } },
@@ -82,13 +83,23 @@ describe('AppComponent', () => {
       expect(root.query(By.css('header .controls exa-deployment-selector'))).toBeTruthy();
     });
 
-    it('lists the Overview and Settings pages of the deployment, with Overview as the current page', () => {
+    it('lists the pages of the deployment, with Overview as the current page', () => {
       const links = root.queryAll(By.css('.nav-content-wrapper a[href^="/deployments"]'));
       const active = root.queryAll(By.css('.nav-content-wrapper a.active'));
 
-      expect(links.map(link => link.nativeElement.textContent.trim())).toEqual(['Overview', 'Settings']);
+      expect(links.map(link => link.nativeElement.textContent.trim())).toEqual(['Overview', 'Sidecars', 'Settings']);
       expect(active.map(link => link.nativeElement.getAttribute('href'))).toEqual(['/deployments/test/overview']);
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Overview');
+    });
+
+    it('opens the Sidecars page from the navigation drawer', async () => {
+      root.query(By.css('.nav-content-wrapper a[href="/deployments/test/sidecars"]')).nativeElement.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(Router).url).toBe('/deployments/test/sidecars');
+      expect(root.query(By.css('exa-page-sidecars'))).toBeTruthy();
+      expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Sidecars');
     });
 
     it('opens the Settings page from the navigation drawer', async () => {

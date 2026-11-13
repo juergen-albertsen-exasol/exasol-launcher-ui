@@ -7,7 +7,7 @@
     <div class="overview__identity">
       <span class="overview__state">
         @if (running(); as operation) {
-        {{ runningState[operation.kind] }}
+        {{ runningState[operation.kind] ?? details()?.state }}
         } @else {
         {{ details()?.state ?? '…' }}
         }
@@ -46,7 +46,7 @@
   @if (failed(); as operation) {
   <p class="overview__failure" role="alert">
     <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
-    <span>{{ operationTitle[operation.kind] }} {{ operation.deployment }} failed: {{ operation.error }}</span>
+    <span>{{ runningLabel(operation) }} failed: {{ operation.error }}</span>
   </p>
   } @if (running(); as operation) {
   <section class="overview__details" aria-label="Operation">

@@ -3,6 +3,7 @@ import { NavItem } from '@exasol/ui-common';
 import { PageDeploymentsComponent } from './pages/page-deployments/page-deployments.component';
 import { PageOverviewComponent } from './pages/page-overview/page-overview.component';
 import { PageSettingsComponent } from './pages/page-settings/page-settings.component';
+import { PageSidecarsComponent } from './pages/page-sidecars/page-sidecars.component';
 import { ShellComponent } from './shell/shell.component';
 
 export const LocalRoutes = {
@@ -11,6 +12,7 @@ export const LocalRoutes = {
 
 export const DeploymentPage = {
   OVERVIEW: 'overview',
+  SIDECARS: 'sidecars',
   SETTINGS: 'settings',
 } as const;
 export type DeploymentPage = (typeof DeploymentPage)[keyof typeof DeploymentPage];
@@ -32,6 +34,11 @@ export const APP_NAV_ITEMS: { [key: string]: NavItem } = {
     path: '',
     faIcon: ['fa-database'],
     text: 'Overview',
+  },
+  [DeploymentPage.SIDECARS]: {
+    path: '',
+    faIcon: ['fa-cubes'],
+    text: 'Sidecars',
   },
   [DeploymentPage.SETTINGS]: {
     path: '',
@@ -70,6 +77,7 @@ export const appRoutes: Route[] = [
     runGuardsAndResolvers: 'always',
     children: [
       page(DeploymentPage.OVERVIEW, PageOverviewComponent),
+      page(DeploymentPage.SIDECARS, PageSidecarsComponent),
       page(DeploymentPage.SETTINGS, PageSettingsComponent),
       { path: '', redirectTo: DeploymentPage.OVERVIEW, pathMatch: 'full' },
     ],

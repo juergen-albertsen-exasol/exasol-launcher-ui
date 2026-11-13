@@ -8,6 +8,7 @@ export class RunOperationAction {
   static readonly type = '[Operations] Run';
   constructor(
     public deployment: string,
-    public kind: OperationKind
+    public kind: OperationKind,
+    public sidecar?: string
   ) {}
 }
