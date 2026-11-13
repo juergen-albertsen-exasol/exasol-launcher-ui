@@ -1,1 +1,119 @@
-<div class="page-wrapper import"></div>
+<div class="page-wrapper import">
+  @if (stopped()) {
+  <div class="import__banner" role="status">
+    <span class="import__banner-text">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      Imports need a running database. Start the deployment to import files.
+    </span>
+    @if (operation(); as running) {
+    <exa-button [squared]="true" [shorter]="true" [loading]="true" [disabled]="true">
+      {{ operationVerb[running.kind] }}
+    </exa-button>
+    } @else if (canStart()) {
+    <exa-button class="import__start" [squared]="true" [shorter]="true" (clickButton)="start()">
+      <i class="fa-solid fa-play import__button-icon" aria-hidden="true"></i>Start
+    </exa-button>
+    }
+  </div>
+  } @if (page().phase === 'choose' || page().phase === 'uploading') {
+  <section class="import__panel" aria-label="Choose Parquet files">
+    <div
+      class="import__drop"
+      [class.import__drop--over]="dragging()"
+      (dragover)="dragOver($event)"
+      (dragleave)="dragging.set(false)"
+      (drop)="dropped($event)"
+    >
+      <i class="fa-solid fa-upload import__drop-icon" aria-hidden="true"></i>
+      <strong class="import__drop-title">Drop Parquet files here</strong>
+      <span class="import__muted">or</span>
+      <exa-button class="import__choose" [disabled]="!canChoose()" (clickButton)="fileInput.click()">
+        Choose files
+      </exa-button>
+      <input
+        #fileInput
+        class="import__file-input"
+        type="file"
+        accept=".parquet"
+        multiple
+        aria-label="Parquet files"
+        (change)="chosen(fileInput)"
+      />
+    </div>
+    @if (page().phase === 'uploading') {
+    <ul class="import__uploads" aria-label="Uploads">
+      @for (upload of page().uploads; track $index) {
+      <li class="import__upload">
+        <span class="import__file-name">{{ upload.name }}</span>
+        <span class="import__bar" aria-hidden="true"><span [style.width.%]="percent(upload.sent)"></span></span>
+        <span class="import__meta">{{ percent(upload.sent) }} %</span>
+      </li>
+      }
+    </ul>
+    } @if (page().fileError; as error) {
+    <p class="import__note import__note--error" role="alert">
+      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+      <span>{{ error }}</span>
+    </p>
+    } @if (page().importError; as error) {
+    <p class="import__note import__note--error" role="alert">
+      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+      <span>{{ error }}</span>
+    </p>
+    }
+    <p class="import__hint">
+      Files of one import need the same columns and become one table. The UI copies them to a temporary folder on this
+      computer and deletes them after the import.
+    </p>
+  </section>
+  } @if (page().phase !== 'suggestion' && page().phase !== 'running') {
+  <div class="import__box" data-label="Recent imports">
+    @if (page().recent.length === 0) {
+    <p class="import__hint">No imports into this deployment since the UI started.</p>
+    } @else {
+    <div class="import__scroll">
+      <table class="import__table import__recent">
+        <thead>
+          <tr>
+            <th scope="col">Table</th>
+            <th scope="col">Source</th>
+            <th scope="col" class="import__right">Rows</th>
+            <th scope="col" class="import__right">Took</th>
+            <th scope="col">Status</th>
+            <th scope="col"><span class="import__hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of page().recent; track entry.id) {
+          <tr class="import__entry" [class.import__entry--with-message]="!!entry.message">
+            <td class="import__mono">{{ entry.schema }}.{{ entry.table }}</td>
+            <td class="import__mono import__muted">{{ entry.source.label }}</td>
+            <td class="import__right">{{ entry.rows === undefined ? '' : count(entry.rows) }}</td>
+            <td class="import__right">{{ seconds(entry.seconds) }}</td>
+            <td>
+              <span
+                class="import__state"
+                [class.import__state--ok]="entry.status === status.SUCCEEDED"
+                [class.import__state--error]="entry.status === status.FAILED"
+                ><span class="import__dot"></span>{{ entry.status }}</span
+              >
+            </td>
+            <td class="import__right">
+              @if (entry.status === status.SUCCEEDED) {
+              <button class="import__link import__query" type="button" (click)="query(entry)">Query</button>
+              }
+            </td>
+          </tr>
+          @if (entry.message) {
+          <tr class="import__message">
+            <td colspan="6">{{ entry.message }}</td>
+          </tr>
+          } }
+        </tbody>
+      </table>
+    </div>
+    <p class="import__hint import__hint--below">Imports of this deployment since the UI started.</p>
+    }
+  </div>
+  }
+</div>

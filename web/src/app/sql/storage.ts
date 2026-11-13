@@ -48,6 +48,12 @@ export function saveText(deployment: string, text: string): void {
   }
 }
 
+/** Adds statement on a new line after the editor's text of deployment. */
+export function appendText(deployment: string, statement: string): void {
+  const text = (loadText(deployment) ?? '').replace(/\s+$/, '');
+  saveText(deployment, text === '' ? statement : `${text}\n${statement}`);
+}
+
 /** The statements run, newest first. */
 export function loadHistory(deployment: string): HistoryEntry[] {
   try {

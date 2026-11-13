@@ -1,4 +1,265 @@
+@import 'colors';
+@import 'panels';
+
 .import {
   gap: 24px;
   padding-top: 24px;
+
+  &__banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--background-secondary);
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+  }
+
+  &__banner-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    i {
+      color: var(--primary-accent);
+    }
+  }
+
+  &__button-icon {
+    margin-right: 8px;
+  }
+
+  &__panel {
+    @include detail-panel;
+  }
+
+  &__box {
+    @include info-box;
+    background-color: var(--background-secondary);
+  }
+
+  &__drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 200px;
+    padding: 32px 24px;
+    border: 2px dashed var(--frame-color);
+    border-radius: 6px;
+    background: var(--background-primary);
+    text-align: center;
+
+    &--over {
+      border-color: var(--primary-accent);
+    }
+  }
+
+  &__drop-icon {
+    color: var(--primary-accent);
+    font-size: 32px;
+  }
+
+  &__drop-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  &__file-input {
+    display: none;
+  }
+
+  &__muted {
+    color: var(--text-secondary);
+  }
+
+  &__hint {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+
+    &--below {
+      margin-top: 10px;
+    }
+  }
+
+  &__uploads,
+  &__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    font-size: 0.88rem;
+    list-style: none;
+  }
+
+  &__upload {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(6rem, 14rem) 3.5rem;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__file-name {
+    font-family: var(--font-mono);
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__bar {
+    display: block;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--frame-color);
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: 6px;
+      background: var(--primary-accent);
+    }
+  }
+
+  &__meta {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.81rem;
+    text-align: right;
+  }
+
+  &__note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background: var(--background-primary);
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+
+    i {
+      margin-top: 3px;
+    }
+
+    &--error {
+      border-color: $red;
+
+      i {
+        color: $red;
+      }
+    }
+  }
+
+  &__scroll {
+    overflow-x: auto;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+
+    th {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--frame-color);
+      color: var(--text-secondary);
+      font-size: 0.81rem;
+      font-weight: 500;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--frame-color);
+      vertical-align: middle;
+    }
+  }
+
+  &__entry--with-message td {
+    border-bottom: none;
+  }
+
+  &__message td {
+    padding-top: 0;
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__right {
+    text-align: right;
+  }
+
+  &__mono {
+    font-family: var(--font-mono);
+    font-size: 0.81rem;
+  }
+
+  &__hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  &__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+
+    &--ok {
+      color: var(--primary-accent);
+    }
+
+    &--error {
+      color: $red;
+    }
+  }
+
+  &__dot {
+    position: relative;
+    width: 12px;
+    height: 12px;
+    box-sizing: border-box;
+    border: 2px solid currentColor;
+    border-radius: 100%;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      border-radius: 100%;
+      background-color: currentColor;
+    }
+  }
+
+  &__link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary-accent);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #2e6fee;
+      outline-offset: 2px;
+    }
+  }
 }

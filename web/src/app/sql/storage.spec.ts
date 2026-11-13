@@ -1,4 +1,13 @@
-import { HISTORY_LIMIT, HistoryEntry, addHistory, clearHistory, loadHistory, loadText, saveText } from './storage';
+import {
+  HISTORY_LIMIT,
+  HistoryEntry,
+  addHistory,
+  appendText,
+  clearHistory,
+  loadHistory,
+  loadText,
+  saveText,
+} from './storage';
 
 const entry = (sql: string): HistoryEntry => ({ sql, at: '2026-11-13T10:00:00Z', ms: 5, outcome: 'succeeded' });
 
@@ -13,6 +22,16 @@ describe('SQL storage', () => {
     expect(loadText('test')).toBe('SELECT 2');
     expect(loadText('other')).toBeUndefined();
     expect(localStorage.getItem('exasol-local-ui:sql:default:text')).toBe('SELECT 1');
+  });
+
+  it('adds a statement on a new line after the text', () => {
+    saveText('default', 'SELECT 1;\n\n');
+
+    appendText('default', 'SELECT 2;');
+    appendText('test', 'SELECT 3;');
+
+    expect(loadText('default')).toBe('SELECT 1;\nSELECT 2;');
+    expect(loadText('test')).toBe('SELECT 3;');
   });
 
   it('keeps the newest statements first, up to the limit', () => {
