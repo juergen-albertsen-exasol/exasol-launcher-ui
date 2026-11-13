@@ -47,6 +47,8 @@ export interface LocalApiFixture {
   /** Messages with which the API refuses to report a deployment's local runtime. */
   localRuntimeRefusals?: { [name: string]: string };
   reports?: { [name: string]: DiagnosticReport };
+  /** Messages with which the API refuses to unlock a deployment's folder. */
+  unlockRefusals?: { [name: string]: string };
 }
 
 export const MCP_CLIENTS: McpClient[] = [
@@ -233,6 +235,10 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
     return refusal ? conflict(refusal) : of(fixture.localRuntimes?.[name] ?? runningLocalRuntime());
   }),
   getDiagnosticReport: jest.fn((name: string) => of(fixture.reports?.[name] ?? diagnosticReport())),
+  unlock: jest.fn((name: string) => {
+    const refusal = fixture.unlockRefusals?.[name];
+    return refusal ? conflict(refusal) : of(undefined);
+  }),
   listMcpClients: jest.fn(() => of(MCP_CLIENTS)),
   getMcpInstructions: jest.fn((name: string, client: string) => of(mcpInstructions(client))),
   pingDeployment: jest.fn((name: string) => of(fixture.pings?.[name] ?? { status: 'reachable', round_trip_ms: 5 })),

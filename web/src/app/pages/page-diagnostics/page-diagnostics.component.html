@@ -107,5 +107,34 @@
       <p class="diagnostics__message">Loading…</p>
       } }
     </div>
+
+    <div class="diagnostics__box diagnostics__shell" data-label="Shell access">
+      @for (shell of shellCommands(); track shell.command; let first = $first) {
+      <p class="diagnostics__lead" [class.diagnostics__lead--first]="first">{{ shell.lead }}</p>
+      <div class="diagnostics__code">
+        <span class="diagnostics__command">{{ shell.command }}</span>
+        <ng-container *ngTemplateOutlet="copyButton; context: { text: shell.command }"></ng-container>
+      </div>
+      }
+    </div>
+
+    <div class="diagnostics__danger" data-label="Recovery">
+      <div class="diagnostics__row">
+        <span
+          ><strong>Unlock the deployment folder.</strong> Only when no launcher process works on this deployment;
+          unlocking during an operation can leave its files inconsistent.</span
+        >
+        <button class="diagnostics__unlock" type="button" [disabled]="!!running()" (click)="unlock()">
+          <i class="fa-solid fa-lock-open" aria-hidden="true"></i>Unlock…
+        </button>
+      </div>
+    </div>
   </section>
 </div>
+
+<!-- The design system's copy icon reacts to clicks only, so a button gives it keyboard access. -->
+<ng-template #copyButton let-text="text">
+  <button class="diagnostics__copy" type="button" aria-label="Copy the command" (click)="copy.copyToClipboard()">
+    <exa-clipboard-copy #copy [whatToCopy]="text"></exa-clipboard-copy>
+  </button>
+</ng-template>

@@ -3,6 +3,11 @@ export class LoadLocalRuntimeAction {
   constructor(public name: string) {}
 }
 
+export class UnlockDeploymentAction {
+  static readonly type = '[Diagnostics] Unlock';
+  constructor(public name: string) {}
+}
+
 export class LoadDiagnosticReportAction {
   static readonly type = '[Diagnostics] Load report';
   constructor(public name: string) {}

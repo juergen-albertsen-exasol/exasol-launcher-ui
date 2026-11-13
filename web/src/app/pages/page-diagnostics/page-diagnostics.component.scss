@@ -138,6 +138,58 @@
     font-size: 0.81rem;
   }
 
+  &__lead {
+    margin: 12px 0 8px;
+
+    &--first {
+      margin-top: 0;
+    }
+  }
+
+  &__code {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-primary);
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__copy {
+    flex: 0 0 auto;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary-accent);
+    cursor: pointer;
+
+    exa-clipboard-copy {
+      pointer-events: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #2e6fee;
+      outline-offset: 3px;
+    }
+  }
+
+  &__danger {
+    @include info-box($red, $red);
+
+    strong {
+      font-weight: 600;
+    }
+  }
+
+  &__unlock {
+    @include outline-button($red);
+  }
+
   &__note {
     margin: 12px 0 0;
     color: var(--text-secondary);

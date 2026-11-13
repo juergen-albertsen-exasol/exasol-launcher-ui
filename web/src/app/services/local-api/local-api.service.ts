@@ -113,6 +113,10 @@ export class LocalApiService {
     return this.http.get<DiagnosticReport>(`${this.diagnosticsPath(name)}/info`);
   }
 
+  unlock(name: string): Observable<void> {
+    return this.http.post<void>(`${this.diagnosticsPath(name)}/unlock`, null);
+  }
+
   private diagnosticsPath(name: string): string {
     return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/diagnostics`;
   }

@@ -98,11 +98,13 @@ describe('LocalApiService', () => {
   it('reads diagnostics from their endpoints', () => {
     service.getLocalRuntime('my deployment').subscribe();
     service.getDiagnosticReport('default').subscribe();
+    service.unlock('default').subscribe();
 
     const requests = http.match(() => true);
     expect(requests.map(request => [request.request.method, request.request.url])).toEqual([
       ['GET', '/api/v1/deployments/my%20deployment/diagnostics/local'],
       ['GET', '/api/v1/deployments/default/diagnostics/info'],
+      ['POST', '/api/v1/deployments/default/diagnostics/unlock'],
     ]);
     requests.forEach(request => request.flush({}));
   });

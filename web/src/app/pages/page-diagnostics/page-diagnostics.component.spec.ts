@@ -1,10 +1,12 @@
 import { DebugElement } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
-import { Store, provideStore } from '@ngxs/store';
+import { Actions, Store, ofActionDispatched, provideStore } from '@ngxs/store';
 import { Subject, firstValueFrom, of } from 'rxjs';
+import { ErrorNotificationsAction, SuccessNotificationsAction } from '@exasol/ui-common';
 import { DeploymentSummary, Operation } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 import { OperationEvent, OperationEventsService } from '@exa/services/local-api/operation-events.service';
@@ -22,7 +24,15 @@ import {
   stoppedLocalRuntime,
   summary,
 } from '../../testing/local-api.mock';
-import { PageDiagnosticsComponent } from './page-diagnostics.component';
+import { PageDiagnosticsComponent, shellArgument } from './page-diagnostics.component';
+
+const notificationsOf = (actions: Actions): unknown[] => {
+  const dispatched: unknown[] = [];
+  actions
+    .pipe(ofActionDispatched(SuccessNotificationsAction, ErrorNotificationsAction))
+    .subscribe(action => dispatched.push(action));
+  return dispatched;
+};
 
 const readText = (blob: Blob): Promise<unknown> =>
   new Promise(resolve => {
@@ -37,6 +47,8 @@ describe('PageDiagnosticsComponent', () => {
   let component: ComponentFixture<PageDiagnosticsComponent>;
   let api: ReturnType<typeof mockLocalApi>;
   let events: Subject<OperationEvent>;
+  let dialogResult: unknown;
+  let writeText: jest.Mock;
 
   const refresh = async () => {
     component.detectChanges();
@@ -47,6 +59,9 @@ describe('PageDiagnosticsComponent', () => {
   const render = async (fixture: LocalApiFixture, name = 'default'): Promise<DebugElement> => {
     api = mockLocalApi(fixture);
     events = new Subject<OperationEvent>();
+    dialogResult = undefined;
+    writeText = jest.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     await TestBed.configureTestingModule({
       imports: [PageDiagnosticsComponent],
       providers: [
@@ -54,6 +69,7 @@ describe('PageDiagnosticsComponent', () => {
         provideRouter([]),
         provideStore([DeploymentsState, OperationsState, DiagnosticsState]),
         { provide: LocalApiService, useValue: api },
+        { provide: MatDialog, useValue: { open: jest.fn(() => ({ afterClosed: () => of(dialogResult) })) } },
         { provide: OperationEventsService, useValue: { follow: jest.fn(() => events) } },
       ],
     }).compileComponents();
@@ -230,5 +246,89 @@ describe('PageDiagnosticsComponent', () => {
     expect(root.query(By.css('.operation-progress'))).toBeNull();
     expect(api.getLocalRuntime).toHaveBeenCalledWith('default');
     expect(button(root, '.diagnostics__check').disabled).toBe(false);
+  });
+
+  it('shows the shell commands and copies them', async () => {
+    const root = await render({ deployments: [summary('default')] });
+
+    const shell = root.query(By.css('.diagnostics__shell'));
+    expect(shell.queryAll(By.css('.diagnostics__lead')).map(lead => lead.nativeElement.textContent.trim())).toEqual([
+      'Open a shell on the host node:',
+      'Run one command on the host node:',
+      'Open a shell in the database container:',
+    ]);
+    expect(shell.queryAll(By.css('.diagnostics__command')).map(command => command.nativeElement.textContent)).toEqual([
+      'exasol shell host -d default',
+      'exasol shell host -d default -- [command]',
+      'exasol shell container -d default',
+    ]);
+
+    shell.queryAll(By.css('button[aria-label="Copy the command"]'))[2].nativeElement.click();
+
+    expect(writeText).toHaveBeenCalledWith('exasol shell container -d default');
+  });
+
+  it('quotes deployment names for the shell', () => {
+    expect(shellArgument('my-test_1.2')).toBe('my-test_1.2');
+    expect(shellArgument('my test')).toBe("'my test'");
+    expect(shellArgument("it's")).toBe("'it'\\''s'");
+  });
+
+  it('unlocks the folder after confirmation and reports it', async () => {
+    const root = await render({ deployments: [summary('default')] });
+    const notifications = notificationsOf(TestBed.inject(Actions));
+    dialogResult = true;
+
+    button(root, '.diagnostics__unlock').click();
+    await refresh();
+
+    expect(TestBed.inject(MatDialog).open).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: 'Unlock default?',
+          content: expect.stringContaining('can leave its files inconsistent'),
+        }),
+      })
+    );
+    expect(api.unlock).toHaveBeenCalledWith('default');
+    expect(notifications).toContainEqual(new SuccessNotificationsAction('Unlocked the folder of default.'));
+  });
+
+  it('leaves the folder locked when the confirmation is cancelled', async () => {
+    const root = await render({ deployments: [summary('default')] });
+
+    button(root, '.diagnostics__unlock').click();
+    await refresh();
+
+    expect(api.unlock).not.toHaveBeenCalled();
+  });
+
+  it('reports a refused unlock', async () => {
+    const root = await render({
+      deployments: [summary('default')],
+      unlockRefusals: { default: 'An operation runs on deployment default, so its folder stays locked.' },
+    });
+    const notifications = notificationsOf(TestBed.inject(Actions));
+    dialogResult = true;
+
+    button(root, '.diagnostics__unlock').click();
+    await refresh();
+
+    expect(notifications).toContainEqual(
+      new ErrorNotificationsAction(
+        'Cannot unlock the folder of default: An operation runs on deployment default, so its folder stays locked.'
+      )
+    );
+  });
+
+  it('keeps Unlock unavailable while an operation runs', async () => {
+    const root = await render({
+      deployments: [summary('default')],
+      operations: [operation({ id: 'op-1', kind: 'start', status: 'running' })],
+    });
+
+    expect(root.query(By.css('.operation-progress'))).toBeTruthy();
+    expect(button(root, '.diagnostics__unlock').disabled).toBe(true);
   });
 });

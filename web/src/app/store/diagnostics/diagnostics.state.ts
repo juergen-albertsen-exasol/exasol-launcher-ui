@@ -2,9 +2,10 @@ import { Injectable, inject } from '@angular/core';
 import { Action, Selector, State, StateContext } from '@ngxs/store';
 import { patch } from '@ngxs/store/operators';
 import { EMPTY, Observable, catchError, finalize, tap } from 'rxjs';
+import { ErrorNotificationsAction, SuccessNotificationsAction } from '@exasol/ui-common';
 import { DiagnosticReport, LocalRuntime } from '@exa/services/local-api/local-api.models';
 import { LocalApiService, problemDetail } from '@exa/services/local-api/local-api.service';
-import { LoadDiagnosticReportAction, LoadLocalRuntimeAction } from './diagnostics.actions';
+import { LoadDiagnosticReportAction, LoadLocalRuntimeAction, UnlockDeploymentAction } from './diagnostics.actions';
 
 export interface DiagnosticsStateModel {
   localRuntimes: { [name: string]: LocalRuntime };
@@ -65,6 +66,17 @@ export class DiagnosticsState {
         return EMPTY;
       }),
       finalize(() => ctx.setState(patch<DiagnosticsStateModel>({ checking: patch({ [name]: false }) })))
+    );
+  }
+
+  @Action(UnlockDeploymentAction)
+  unlock(ctx: StateContext<DiagnosticsStateModel>, { name }: UnlockDeploymentAction): Observable<unknown> {
+    return this.api.unlock(name).pipe(
+      tap(() => ctx.dispatch(new SuccessNotificationsAction(`Unlocked the folder of ${name}.`))),
+      catchError(error => {
+        ctx.dispatch(new ErrorNotificationsAction(`Cannot unlock the folder of ${name}: ${problemDetail(error)}`));
+        return EMPTY;
+      })
     );
   }
 
