@@ -10,6 +10,7 @@ import { AppComponent } from '@exa/app.component';
 import { APP_NAV_ITEMS, appRoutes } from '@exa/routes';
 import { sessionInterceptor } from '@exa/services/session/session.interceptor';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
+import { OperationsState } from '@exa/store/operations/operations.state';
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -18,7 +19,7 @@ bootstrapApplication(AppComponent, {
     provideRouter(appRoutes, withEnabledBlockingInitialNavigation(), withComponentInputBinding()),
     provideHttpClient(withInterceptors([sessionInterceptor])),
     provideAnimations(),
-    provideStore([NotificationsState, DeploymentsState]),
+    provideStore([NotificationsState, DeploymentsState, OperationsState]),
     { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
   ],
 }).catch(err => console.error(err));

@@ -1,0 +1,129 @@
+@import 'colors';
+
+:host {
+  position: relative;
+  display: inline-flex;
+
+  // Takes no space in the header controls while nothing runs.
+  &:empty {
+    display: none;
+  }
+}
+
+.activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--primary-accent);
+  border-radius: 4px;
+  background-color: var(--background-secondary);
+  color: var(--primary-accent);
+  font-size: 0.81rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &--brand {
+    border-color: rgba(255, 255, 255, 0.7);
+    background-color: transparent;
+    color: #fff;
+
+    .activity__spinner {
+      border-color: rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+    }
+  }
+
+  &__spinner {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--frame-color);
+    border-top-color: var(--primary-accent);
+    border-radius: 50%;
+    animation: activity-spin 1s linear infinite;
+
+    &--panel {
+      border-color: var(--frame-color);
+      border-top-color: var(--primary-accent);
+    }
+  }
+
+  &__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    width: 380px;
+    border-radius: 6px;
+    background-color: var(--background-secondary);
+    box-shadow:
+      0 0 2px #444,
+      0 15px 25px 10px rgba(0, 0, 0, 0.12);
+    color: var(--text-primary);
+    overflow: hidden;
+  }
+
+  &__title {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--frame-color);
+    font-weight: 500;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--table-row-separator-color);
+    font-size: 0.88rem;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__time {
+    margin-left: auto;
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+  }
+
+  &__detail {
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+  }
+
+  &__link {
+    align-self: flex-start;
+    color: var(--primary-accent);
+    font-size: 0.81rem;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__ok {
+    color: var(--primary-accent);
+  }
+
+  &__failed {
+    color: $red;
+  }
+}
+
+@keyframes activity-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

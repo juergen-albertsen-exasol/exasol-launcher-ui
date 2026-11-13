@@ -7,6 +7,7 @@ import { NEVER, firstValueFrom } from 'rxjs';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
 import { LoadDeploymentsAction } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
+import { OperationsState } from '@exa/store/operations/operations.state';
 import { LocalApiFixture, mockLocalApi, provideLocalApi, summary } from '../../testing/local-api.mock';
 import { PageDeploymentsComponent } from './page-deployments.component';
 
@@ -14,7 +15,7 @@ describe('PageDeploymentsComponent', () => {
   const render = async (fixture: LocalApiFixture): Promise<DebugElement> => {
     await TestBed.configureTestingModule({
       imports: [PageDeploymentsComponent],
-      providers: [provideRouter([]), provideStore([DeploymentsState]), provideLocalApi(fixture)],
+      providers: [provideRouter([]), provideStore([DeploymentsState, OperationsState]), provideLocalApi(fixture)],
     }).compileComponents();
 
     await firstValueFrom(TestBed.inject(Store).dispatch(new LoadDeploymentsAction()));
@@ -56,7 +57,11 @@ describe('PageDeploymentsComponent', () => {
     api.listDeployments.mockReturnValue(NEVER);
     await TestBed.configureTestingModule({
       imports: [PageDeploymentsComponent],
-      providers: [provideRouter([]), provideStore([DeploymentsState]), { provide: LocalApiService, useValue: api }],
+      providers: [
+        provideRouter([]),
+        provideStore([DeploymentsState, OperationsState]),
+        { provide: LocalApiService, useValue: api },
+      ],
     }).compileComponents();
     TestBed.inject(Store).dispatch(new LoadDeploymentsAction());
 

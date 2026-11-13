@@ -8,6 +8,7 @@
   &__brand {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     height: 56px;
     padding: 0 20px;
     background-color: var(--primary-accent);

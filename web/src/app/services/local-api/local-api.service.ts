@@ -1,7 +1,14 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { DeploymentDetails, DeploymentSummary, PingResult, Problem } from './local-api.models';
+import {
+  DeploymentDetails,
+  DeploymentSummary,
+  Operation,
+  OperationKind,
+  PingResult,
+  Problem,
+} from './local-api.models';
 
 export const API_BASE_PATH = '/api/v1';
 
@@ -20,6 +27,18 @@ export class LocalApiService {
 
   openFolder(name: string): Observable<void> {
     return this.http.post<void>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/open-folder`, null);
+  }
+
+  runOperation(name: string, kind: OperationKind): Observable<Operation> {
+    return this.http.post<Operation>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/${kind}`, null);
+  }
+
+  listOperations(): Observable<Operation[]> {
+    return this.http.get<Operation[]>(`${API_BASE_PATH}/operations`);
+  }
+
+  getOperation(id: string): Observable<Operation> {
+    return this.http.get<Operation>(`${API_BASE_PATH}/operations/${encodeURIComponent(id)}`);
   }
 
   pingDeployment(name: string): Observable<PingResult> {

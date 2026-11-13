@@ -6,6 +6,7 @@ import { LayoutStateService, NotificationsService, ThemeService } from '@exasol/
 import { SessionExpiredComponent } from './components/session-expired/session-expired.component';
 import { SessionService } from './services/session/session.service';
 import { LoadDeploymentsAction } from './store/deployments/deployments.actions';
+import { OperationsPollingService } from './store/operations/operations-polling.service';
 
 @Component({
   selector: 'exa-root',
@@ -17,6 +18,7 @@ export class AppComponent implements OnInit {
   private readonly themeService = inject(ThemeService);
   private readonly store = inject(Store);
   private readonly layoutState = inject(LayoutStateService);
+  private readonly operationsPolling = inject(OperationsPollingService);
   readonly sessionExpired = inject(SessionService).expired;
 
   constructor() {
@@ -24,6 +26,7 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.operationsPolling.start();
     this.themeService.enabled.next(true);
     if (!this.themeService.currentTheme && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
       this.themeService.setTheme(this.themeService.availableThemes[0]);

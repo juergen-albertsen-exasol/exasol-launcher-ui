@@ -1,0 +1,43 @@
+@if (running().length) {
+<button
+  class="activity"
+  [class.activity--brand]="variant() === 'brand'"
+  type="button"
+  aria-haspopup="dialog"
+  [attr.aria-expanded]="open()"
+  (click)="toggle()"
+>
+  <span class="activity__spinner" aria-hidden="true"></span>{{ indicatorText() }}
+</button>
+@if (open()) {
+<section class="activity__panel" role="dialog" aria-label="Activity">
+  <header class="activity__title">Activity</header>
+  <ul class="activity__list">
+    @for (operation of running(); track operation.id) {
+    <li class="activity__item activity__item--running">
+      <span class="activity__head">
+        <span class="activity__spinner activity__spinner--panel" aria-hidden="true"></span>
+        <strong>{{ label(operation) }}</strong>
+        <span class="activity__time">{{ elapsed(operation) }}</span>
+      </span>
+      <a class="activity__link" [routerLink]="overviewPath(operation.deployment)" (click)="close()">Show progress</a>
+    </li>
+    } @for (operation of finished(); track operation.id) {
+    <li class="activity__item activity__item--finished">
+      <span class="activity__head">
+        @if (operation.status === succeeded) {
+        <i class="fa-solid fa-circle-check activity__ok" aria-hidden="true"></i>
+        } @else {
+        <i class="fa-solid fa-circle-xmark activity__failed" aria-hidden="true"></i>
+        }
+        <strong>{{ label(operation) }}</strong>
+        <span class="activity__time">{{ ago(operation) }}</span>
+      </span>
+      @if (operation.error) {
+      <span class="activity__detail">{{ operation.error }}</span>
+      }
+    </li>
+    }
+  </ul>
+</section>
+} }

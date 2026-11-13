@@ -38,3 +38,28 @@ export interface Problem {
   title: string;
   detail?: string;
 }
+
+export const OperationKind = {
+  START: 'start',
+  STOP: 'stop',
+} as const;
+export type OperationKind = (typeof OperationKind)[keyof typeof OperationKind];
+
+export const OperationStatus = {
+  RUNNING: 'running',
+  SUCCEEDED: 'succeeded',
+  FAILED: 'failed',
+} as const;
+export type OperationStatus = (typeof OperationStatus)[keyof typeof OperationStatus];
+
+export interface Operation {
+  id: string;
+  deployment: string;
+  kind: OperationKind;
+  status: OperationStatus;
+  started_at: string;
+  finished_at?: string;
+  result?: { deployment_state: string; database_ready: boolean };
+  error?: string;
+  lines?: string[];
+}

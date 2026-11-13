@@ -3,13 +3,17 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
-import { provideStore } from '@ngxs/store';
+import { Store, provideStore } from '@ngxs/store';
+import { firstValueFrom } from 'rxjs';
 import { NAV_ITEMS, NotificationsState } from '@exasol/ui-common';
+import { OperationsPollingService } from '@exa/store/operations/operations-polling.service';
+import { OperationsState } from '@exa/store/operations/operations.state';
 import { AppComponent } from './app.component';
 import { APP_NAV_ITEMS, appRoutes } from './routes';
 import { SessionService } from './services/session/session.service';
 import { DeploymentsState } from './store/deployments/deployments.state';
-import { provideLocalApi, summary } from './testing/local-api.mock';
+import { LoadOperationsAction } from './store/operations/operations.actions';
+import { operation, provideLocalApi, summary } from './testing/local-api.mock';
 
 describe('AppComponent', () => {
   let fixture: ComponentFixture<AppComponent>;
@@ -28,9 +32,10 @@ describe('AppComponent', () => {
       providers: [
         provideRouter(appRoutes, withComponentInputBinding()),
         provideNoopAnimations(),
-        provideStore([NotificationsState, DeploymentsState]),
-        provideLocalApi({ deployments: [summary('default'), summary('test')] }),
+        provideStore([NotificationsState, DeploymentsState, OperationsState]),
+        provideLocalApi({ deployments: [summary('default'), summary('test')], operations: [operation()] }),
         { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
+        { provide: OperationsPollingService, useValue: { start: jest.fn() } },
       ],
     }).compileComponents();
 
@@ -62,6 +67,14 @@ describe('AppComponent', () => {
 
       expect(TestBed.inject(Router).url).toBe('/deployments');
       expect(root.query(By.css('exa-page-deployments'))).toBeTruthy();
+    });
+
+    it('shows a running operation in the header', async () => {
+      await firstValueFrom(TestBed.inject(Store).dispatch(new LoadOperationsAction()));
+      fixture.detectChanges();
+
+      const indicator = root.query(By.css('header .controls exa-activity .activity'));
+      expect(indicator.nativeElement.textContent).toContain('Starting default');
     });
 
     it('shows the deployment selector in the header', () => {
