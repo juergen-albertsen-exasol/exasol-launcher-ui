@@ -10,6 +10,7 @@ import (
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/opener"
 	"github.com/exasol/exasol-local-ui/internal/operations"
+	"github.com/exasol/exasol-local-ui/internal/sql"
 )
 
 // Config holds what the handler needs to answer requests.
@@ -21,6 +22,9 @@ type Config struct {
 	Operations *operations.Manager
 	// OpenFolder defaults to opener.Open.
 	OpenFolder func(ctx context.Context, path string) error
+	// SQL holds the SQL sessions; it defaults to a manager that connects
+	// through the driver.
+	SQL *sql.Manager
 	// WebApp holds the compiled browser application.
 	WebApp fs.FS
 }
@@ -35,12 +39,17 @@ func NewHandler(config Config) http.Handler {
 		config.OpenFolder = opener.Open
 	}
 
+	if config.SQL == nil {
+		config.SQL = sql.NewManager(sql.NewDriverOpener())
+	}
+
 	mux := http.NewServeMux()
 	(&api{
 		launcher:   config.Launcher,
 		ping:       config.Ping,
 		openFolder: config.OpenFolder,
 		operations: config.Operations,
+		sql:        config.SQL,
 	}).register(mux)
 	mux.Handle("/", newWebApp(config.WebApp))
 

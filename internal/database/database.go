@@ -80,7 +80,11 @@ func Ping(ctx context.Context, target Target) (time.Duration, error) {
 	return roundTrip, nil
 }
 
-func querySelectOne(ctx context.Context, target Target) (time.Duration, error) {
+// Open returns a connection pool for target. Errors never contain the
+// password.
+func Open(target Target) (*sql.DB, error) {
+	silenceDriverLogger()
+
 	dsn := exasol.NewConfig(target.Username, target.Password).
 		Host(target.Host).
 		Port(target.Port).
@@ -90,13 +94,20 @@ func querySelectOne(ctx context.Context, target Target) (time.Duration, error) {
 
 	connector, err := exasol.ExasolDriver{}.OpenConnector(dsn)
 	if err != nil {
-		return 0, err
+		return nil, Redact(err, target.Password)
 	}
 
-	db := sql.OpenDB(connector)
-	defer db.Close()
+	return sql.OpenDB(connector), nil
+}
 
-	conn, err := db.Conn(ctx)
+func querySelectOne(ctx context.Context, target Target) (time.Duration, error) {
+	connections, err := Open(target)
+	if err != nil {
+		return 0, err
+	}
+	defer connections.Close()
+
+	conn, err := connections.Conn(ctx)
 	if err != nil {
 		return 0, err
 	}

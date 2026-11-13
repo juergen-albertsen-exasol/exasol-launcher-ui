@@ -184,7 +184,16 @@ func checkOptionName(response http.ResponseWriter, options []string, name string
 }
 
 func decodeBody(response http.ResponseWriter, request *http.Request, target any) bool {
-	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, maxBodyBytes))
+	return decodeSizedBody(response, request, target, maxBodyBytes)
+}
+
+func decodeSizedBody(
+	response http.ResponseWriter,
+	request *http.Request,
+	target any,
+	limit int64,
+) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, limit))
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(target); err != nil {

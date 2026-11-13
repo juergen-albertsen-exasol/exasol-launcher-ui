@@ -8,6 +8,7 @@ import (
 	"github.com/exasol/exasol-local-ui/internal/database"
 	"github.com/exasol/exasol-local-ui/internal/launcher"
 	"github.com/exasol/exasol-local-ui/internal/operations"
+	"github.com/exasol/exasol-local-ui/internal/sql"
 )
 
 const (
@@ -49,6 +50,7 @@ type api struct {
 	ping       func(ctx context.Context, target database.Target) (time.Duration, error)
 	openFolder func(ctx context.Context, path string) error
 	operations *operations.Manager
+	sql        *sql.Manager
 }
 
 func (a *api) register(mux *http.ServeMux) {
@@ -61,6 +63,7 @@ func (a *api) register(mux *http.ServeMux) {
 	a.registerSidecars(mux)
 	a.registerScriptLanguages(mux)
 	a.registerDiagnostics(mux)
+	a.registerSQL(mux)
 	mux.HandleFunc("/api/", func(response http.ResponseWriter, _ *http.Request) {
 		writeProblem(response, http.StatusNotFound, "The API has no such resource.")
 	})

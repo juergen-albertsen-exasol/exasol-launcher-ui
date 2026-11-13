@@ -1,0 +1,227 @@
+// Package sqltest provides a fake database for tests of SQL sessions.
+package sqltest
+
+import (
+	"context"
+	"io"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/exasol/exasol-local-ui/internal/database"
+	"github.com/exasol/exasol-local-ui/internal/sql"
+)
+
+const runningBuffer = 100
+
+// Response is the fake database's answer to a statement.
+type Response struct {
+	// Columns makes the statement yield a result set.
+	Columns []sql.Column
+	// Rows are the result set's rows; Generate takes over beyond them.
+	Rows [][]sql.Value
+	// Total is the number of rows; it defaults to len(Rows).
+	Total int64
+	// Generate returns the row at index when Rows holds fewer.
+	Generate func(index int64) []sql.Value
+	// RowCount is the number of affected rows of other statements.
+	RowCount int64
+	// Err makes the statement fail.
+	Err error
+	// Block holds the statement until it is closed.
+	Block chan struct{}
+}
+
+// Fake is a database whose answers tests define. Unknown statements fail
+// with error code 42000. Each connection keeps its own open schema, which
+// OPEN SCHEMA sets and SELECT CURRENT_SCHEMA reports.
+type Fake struct {
+	mutex      sync.Mutex
+	responses  map[string]Response
+	executed   []string
+	opened     []database.Target
+	open       int
+	closed     bool
+	connectErr error
+	running    chan string
+}
+
+func NewFake() *Fake {
+	return &Fake{responses: map[string]Response{}, running: make(chan string, runningBuffer)}
+}
+
+// Respond defines the answer to statement.
+func (f *Fake) Respond(statement string, response Response) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	f.responses[statement] = response
+}
+
+// FailConnect makes connecting fail with err.
+func (f *Fake) FailConnect(err error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	f.connectErr = err
+}
+
+// Executed returns the statements run so far, in order.
+func (f *Fake) Executed() []string {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	return append([]string(nil), f.executed...)
+}
+
+// Opened returns the targets of the connections opened so far.
+func (f *Fake) Opened() []database.Target {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	return append([]database.Target(nil), f.opened...)
+}
+
+// OpenConnections returns the number of connections not yet closed.
+func (f *Fake) OpenConnections() int {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	return f.open
+}
+
+// Closed reports whether the opener was closed.
+func (f *Fake) Closed() bool {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	return f.closed
+}
+
+// Running returns the statements as they start blocking on a Response's
+// Block.
+func (f *Fake) Running() <-chan string {
+	return f.running
+}
+
+func (f *Fake) Open(_ context.Context, _ string, target database.Target) (sql.Conn, error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	if f.connectErr != nil {
+		return nil, f.connectErr
+	}
+
+	f.opened = append(f.opened, target)
+	f.open++
+
+	return &conn{fake: f, session: strconv.Itoa(len(f.opened))}, nil
+}
+
+func (f *Fake) Close() error {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	f.closed = true
+
+	return nil
+}
+
+// Text returns value as a non-NULL sql.Value.
+func Text(value string) sql.Value {
+	return &value
+}
+
+type conn struct {
+	fake    *Fake
+	session string
+	schema  sql.Value
+}
+
+func (c *conn) Execute(
+	_ context.Context,
+	statement string,
+	read func(sql.Rows) error,
+) (int64, error) {
+	c.fake.mutex.Lock()
+	c.fake.executed = append(c.fake.executed, statement)
+	response, found := c.fake.responses[statement]
+	c.fake.mutex.Unlock()
+
+	switch {
+	case found:
+	case statement == "SELECT CURRENT_SCHEMA":
+		return 0, read(&rows{response: Response{
+			Columns: []sql.Column{{Name: "CURRENT_SCHEMA", Type: "VARCHAR(128) UTF8"}},
+			Rows:    [][]sql.Value{{c.schema}},
+		}})
+	case statement == "SELECT CURRENT_SESSION":
+		return 0, read(&rows{response: Response{
+			Columns: []sql.Column{{Name: "CURRENT_SESSION", Type: "DECIMAL(20,0)"}},
+			Rows:    [][]sql.Value{{Text(c.session)}},
+		}})
+	case strings.HasPrefix(statement, "OPEN SCHEMA "):
+		schema := strings.Trim(strings.TrimPrefix(statement, "OPEN SCHEMA "), `"`)
+		c.schema = &schema
+
+		return 0, nil
+	default:
+		return 0, &sql.StatementError{Code: "42000", Message: "unknown statement " + statement}
+	}
+
+	if response.Block != nil {
+		c.fake.running <- statement
+		<-response.Block
+	}
+
+	if response.Err != nil {
+		return 0, response.Err
+	}
+
+	if response.Columns == nil {
+		return response.RowCount, nil
+	}
+
+	return 0, read(&rows{response: response})
+}
+
+func (c *conn) Close() error {
+	c.fake.mutex.Lock()
+	defer c.fake.mutex.Unlock()
+
+	c.fake.open--
+
+	return nil
+}
+
+type rows struct {
+	response Response
+	position int64
+}
+
+func (r *rows) Columns() []sql.Column {
+	return r.response.Columns
+}
+
+func (r *rows) Total() int64 {
+	if r.response.Total > 0 {
+		return r.response.Total
+	}
+
+	return int64(len(r.response.Rows))
+}
+
+func (r *rows) Next(context.Context) ([]sql.Value, error) {
+	if r.position >= r.Total() {
+		return nil, io.EOF
+	}
+
+	index := r.position
+	r.position++
+
+	if index < int64(len(r.response.Rows)) {
+		return r.response.Rows[index], nil
+	}
+
+	return r.response.Generate(index), nil
+}

@@ -17,6 +17,7 @@ import (
 	"github.com/exasol/exasol-local-ui/internal/opener"
 	"github.com/exasol/exasol-local-ui/internal/operations"
 	"github.com/exasol/exasol-local-ui/internal/server"
+	"github.com/exasol/exasol-local-ui/internal/sql"
 	"github.com/exasol/exasol-local-ui/internal/webapp"
 )
 
@@ -115,6 +116,9 @@ func serve(ctx context.Context, opts options, env environment) error {
 		return fmt.Errorf("unexpected listener address %s", listener.Addr())
 	}
 
+	sessions := sql.NewManager(sql.NewDriverOpener())
+	defer sessions.Close()
+
 	token := server.NewToken()
 	accessPath := "/"
 	if opts.deployment != "" {
@@ -132,6 +136,7 @@ func serve(ctx context.Context, opts options, env environment) error {
 			Launcher: launcherClient,
 			Operations: operations.NewManager(
 				ctx, launcherClient, launcherClient.InvalidateListing),
+			SQL:    sessions,
 			WebApp: webApp,
 		}))
 
