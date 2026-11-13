@@ -88,7 +88,50 @@ development loop.
 
 ## Status
 
-The first change, `add-app-scaffold`, provides the server, the launcher and
-database integration, and the app shell with the deployment tiles and the
-overview page. The planned order after it is sidecar management, a SQL editor,
-and health views, each drafted on the design canvas first.
+Done: the server, launcher and database integration, the deployment tiles and
+overview (`add-app-scaffold`, `refine-deployment-pages`), and long-running
+operations with Start, Stop, and the activity indicator (`add-operations`).
+Long launcher commands go through `internal/operations`; later changes reuse
+it.
+
+The canvas already draws every remaining screen. Implement these as separate
+OpenSpec changes, one per session, in this order (the canvas artboard names
+in parentheses):
+
+1. `add-deployment-settings`: the Settings page (`Configuration`,
+   `DestroyDialog`). `config get --json`, `config set`, `config reset`, apply
+   with `deploy`, and a danger zone with `destroy`, `destroy --remove`, and
+   `remove`, each confirmed by typing the deployment name.
+2. `add-sidecar-management`: Sidecars and MCP server pages (`Sidecars`,
+   `MCP`). `sidecar list/status/enable/disable`, `mcp status/enable/disable`,
+   and `mcp instructions` with copyable client commands.
+3. `add-script-languages`: the Script languages page (`ScriptLanguages`).
+   `slc list/install/update/remove` and `slc custom install/update`, with the
+   restart choice (`--no-restart`).
+4. `add-diagnostics`: the Diagnostics page (`Diagnostics`). `diag local`,
+   `diag info` (show and download), guarded `diag unlock`, and copyable
+   `shell host` and `shell container` commands.
+5. `add-deployment-creation`: the New deployment page (`NewDeployment`).
+   `install` and `init` for every preset; test only local deployments, since
+   cloud ones take long and cost money.
+6. `add-launcher-tools`: the start page toolbar with Presets, Runtime cache,
+   and Launcher pages (`Main`, `Presets`, `Cache`, `Launcher`).
+   `presets list/export`, `cache list/clean/unlock`, `diag cache`, and
+   `version --latest`.
+
+A SQL client and health views follow later and replace `exasol connect` in
+the UI.
+
+Launcher findings that affect these changes:
+
+- `config set --help` lists no preset options. The command accepts them as
+  `--<option>` flags validated against the preset; `config get --json` reports
+  them under `infrastructure.options` and `installation.options`.
+- `config set` and `config reset` only work on initialized cloud deployments
+  and stopped local deployments; the launcher refuses them otherwise.
+- `init`, `install`, `deploy`, and `destroy` have no `--json` output; judge
+  them by exit status and stream their stderr.
+- Without a terminal the launcher writes JSON log records to stderr;
+  `launcher.Stream` turns them into readable lines.
+- Decide actions on the deployment listing's `status`, which checks the
+  runtime; `info` can report a stale stored `deploymentState`.
