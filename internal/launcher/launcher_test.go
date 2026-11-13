@@ -286,3 +286,37 @@ func TestCancellingInterruptsTheLauncher(t *testing.T) {
 	require.Error(t, <-done)
 	assert.Equal(t, []string{strings.Join(args, " ")}, fake.Interrupted())
 }
+
+func TestShortCommandsRunOneAtATime(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	defaultArgs := []string{"info", "--json", "--deployment-dir", "/deployments/default"}
+	fake.Respond(`{}`, defaultArgs...)
+	fake.Respond(`{}`, "info", "--json", "--deployment-dir", "/deployments/test")
+	fake.Hold(defaultArgs...)
+
+	client := launcher.New(fake.Executable)
+	done := make(chan error, 2)
+
+	go func() {
+		_, err := client.Info(t.Context(), "/deployments/default")
+		done <- err
+	}()
+
+	require.Eventually(t, func() bool { return len(fake.Calls()) == 1 },
+		5*time.Second, 10*time.Millisecond)
+
+	go func() {
+		_, err := client.Info(t.Context(), "/deployments/test")
+		done <- err
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+	assert.Len(t, fake.Calls(), 1)
+
+	fake.Release(defaultArgs...)
+	require.NoError(t, <-done)
+	require.NoError(t, <-done)
+	assert.Len(t, fake.Calls(), 2)
+}

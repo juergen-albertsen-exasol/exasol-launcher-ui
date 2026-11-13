@@ -66,6 +66,12 @@ type Client struct {
 	mu       sync.Mutex
 	listing  []Deployment
 	listedAt time.Time
+
+	// The launcher's directory lock is not safe against launchers that start
+	// at the same moment: both can take it and leave the directory locked for
+	// good. Short commands therefore run one at a time; long ones hold their
+	// lock once started, so later commands wait for it in the launcher.
+	short sync.Mutex
 }
 
 func New(executable string) *Client {
@@ -209,6 +215,9 @@ func (c *Client) Stream(
 }
 
 func (c *Client) runJSON(ctx context.Context, target any, args ...string) error {
+	c.short.Lock()
+	defer c.short.Unlock()
+
 	command := c.executable + " " + strings.Join(args, " ")
 
 	var stdout, stderr bytes.Buffer

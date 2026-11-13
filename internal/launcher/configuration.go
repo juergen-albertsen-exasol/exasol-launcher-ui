@@ -125,6 +125,9 @@ func (e *LauncherError) Error() string {
 // run runs a short launcher command. When the launcher fails, the error is a
 // LauncherError carrying the launcher's error message without its usage text.
 func (c *Client) run(ctx context.Context, args ...string) error {
+	c.short.Lock()
+	defer c.short.Unlock()
+
 	var stderr bytes.Buffer
 
 	cmd := c.command(ctx, args...)
