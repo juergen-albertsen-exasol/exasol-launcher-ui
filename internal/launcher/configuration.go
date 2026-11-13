@@ -113,13 +113,19 @@ func (c *Client) ResetConfiguration(
 	return c.run(ctx, append(args, "--deployment-dir", deploymentDir)...)
 }
 
-// LauncherError is a failure the launcher reported itself.
+// LauncherError is a failure the launcher reported itself. Command, when
+// set, names the command that failed.
 type LauncherError struct {
+	Command string
 	Message string
 }
 
 func (e *LauncherError) Error() string {
-	return e.Message
+	if e.Command == "" {
+		return e.Message
+	}
+
+	return fmt.Sprintf("%q failed: %s", e.Command, e.Message)
 }
 
 // run runs a short launcher command. When the launcher fails, the error is a

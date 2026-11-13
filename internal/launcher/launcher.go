@@ -231,11 +231,7 @@ func (c *Client) runJSON(ctx context.Context, target any, args ...string) error 
 			return fmt.Errorf("cannot run the launcher %q: %w", c.executable, err)
 		}
 
-		if message := strings.TrimSpace(stderr.String()); message != "" {
-			return fmt.Errorf("%q failed: %s", command, message)
-		}
-
-		return fmt.Errorf("%q failed: %w", command, err)
+		return &LauncherError{Command: command, Message: errorMessage(stderr.String(), err)}
 	}
 
 	if err := json.Unmarshal(stdout.Bytes(), target); err != nil {
