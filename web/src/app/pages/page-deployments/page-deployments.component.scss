@@ -46,6 +46,7 @@
   }
 
   &__tile {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -56,10 +57,9 @@
     box-shadow:
       1px 1px 7px -4px rgba(0, 0, 0, 0.87),
       -1px -1px 2px -2px var(--deployment-shadow-color);
-    cursor: pointer;
 
     &:hover,
-    &:focus-visible {
+    &:focus-within {
       outline: none;
       box-shadow:
         1px 1px 7px -4px rgba(0, 0, 0, 0.87),
@@ -95,14 +95,23 @@
   }
 
   &__name {
+    color: inherit;
     font-size: 24px;
     font-weight: 500;
+    outline: none;
+
+    // The name's link covers the whole tile.
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 6px;
+    }
   }
 
-  &__path {
-    color: var(--text-secondary);
-    font-size: 0.81rem;
-    overflow-wrap: anywhere;
+  &__folder {
+    position: relative;
+    z-index: 1;
   }
 
   &__message {

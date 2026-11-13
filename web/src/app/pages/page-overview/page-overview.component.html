@@ -8,7 +8,7 @@
       <span class="overview__state">{{ details()?.state ?? '…' }}</span>
       <h2 class="overview__name">{{ name() }}</h2>
       @if (summary(); as deployment) {
-      <span class="overview__path">{{ deployment.path }}</span>
+      <exa-folder-link class="overview__path" [deployment]="deployment.name" [path]="deployment.path"></exa-folder-link>
       }
     </div>
     <div class="overview__aside">

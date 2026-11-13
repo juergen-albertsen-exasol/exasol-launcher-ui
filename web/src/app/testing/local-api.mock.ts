@@ -25,6 +25,7 @@ export interface LocalApiFixture {
 export const mockLocalApi = (fixture: LocalApiFixture) => ({
   listDeployments: jest.fn(() => of(fixture.deployments)),
   getDeployment: jest.fn((name: string) => of(fixture.details?.[name] ?? runningDetails(name))),
+  openFolder: jest.fn(() => of(undefined)),
   pingDeployment: jest.fn((name: string) => of(fixture.pings?.[name] ?? { status: 'reachable', round_trip_ms: 5 })),
 });
 

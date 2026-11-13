@@ -1,6 +1,7 @@
 import { Component, effect, inject, input } from '@angular/core';
 import { Store } from '@ngxs/store';
 import { ExaButtonComponent } from '@exasol/ui-common';
+import { FolderLinkComponent } from '@exa/components/folder-link/folder-link.component';
 import { DEPLOYMENT_READY_STATUS, PingStatus } from '@exa/services/local-api/local-api.models';
 import { PingDeploymentAction, SelectDeploymentAction } from '@exa/store/deployments/deployments.actions';
 import { DeploymentsState } from '@exa/store/deployments/deployments.state';
@@ -9,7 +10,7 @@ import { DeploymentsState } from '@exa/store/deployments/deployments.state';
   selector: 'exa-page-overview',
   templateUrl: './page-overview.component.html',
   styleUrls: ['./page-overview.component.scss'],
-  imports: [ExaButtonComponent],
+  imports: [ExaButtonComponent, FolderLinkComponent],
 })
 export class PageOverviewComponent {
   private readonly store = inject(Store);

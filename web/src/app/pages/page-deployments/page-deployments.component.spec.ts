@@ -31,16 +31,16 @@ describe('PageDeploymentsComponent', () => {
       tile.query(By.css(`.deployments__${part}`)).nativeElement.textContent.trim();
 
     expect(tiles.map(tile => tileText(tile, 'name'))).toEqual(['default', 'test']);
-    expect(tileText(tiles[1], 'path')).toBe('/home/user/.exasol/personal/deployments/test');
+    expect(tileText(tiles[1], 'folder')).toBe('/home/user/.exasol/personal/deployments/test');
     expect(tileText(tiles[1], 'status')).toBe('stopped');
     expect(tileText(tiles[1], 'preset')).toBe('local');
   });
 
-  it('opens the overview of the selected tile', async () => {
+  it('opens the overview from the tile name, which covers the tile', async () => {
     const root = await render({ deployments: [summary('default'), summary('test')] });
     const navigate = jest.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
 
-    root.queryAll(By.css('.deployments__tile'))[1].nativeElement.click();
+    root.queryAll(By.css('.deployments__name'))[1].nativeElement.click();
 
     expect(navigate.mock.calls[0][0].toString()).toBe('/deployments/test');
   });

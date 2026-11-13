@@ -18,6 +18,10 @@ export class LocalApiService {
     return this.http.get<DeploymentDetails>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}`);
   }
 
+  openFolder(name: string): Observable<void> {
+    return this.http.post<void>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/open-folder`, null);
+  }
+
   pingDeployment(name: string): Observable<PingResult> {
     return this.http.get<PingResult>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/health/ping`);
   }

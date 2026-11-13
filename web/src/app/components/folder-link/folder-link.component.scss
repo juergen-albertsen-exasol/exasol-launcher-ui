@@ -1,0 +1,17 @@
+.folder-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--primary-accent);
+  font-size: 0.81rem;
+  overflow-wrap: anywhere;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+
+  &__icon {
+    flex: 0 0 auto;
+  }
+}

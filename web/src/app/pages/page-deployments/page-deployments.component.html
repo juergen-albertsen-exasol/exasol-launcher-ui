@@ -8,16 +8,20 @@
       @if (listError(); as error) {
       <p class="deployments__message deployments__message--error">Cannot list deployments: {{ error }}</p>
       } @else if (deployments(); as deployments) { @for (deployment of deployments; track deployment.name) {
-      <a class="deployments__tile" [routerLink]="overviewPath(deployment.name)">
+      <div class="deployments__tile">
         <span class="deployments__tile-top">
           <span class="deployments__status" [class.deployments__status--ready]="deployment.status === readyStatus">
             {{ deployment.status }}
           </span>
           <span class="deployments__preset">{{ deployment.infrastructure }}</span>
         </span>
-        <span class="deployments__name">{{ deployment.name }}</span>
-        <span class="deployments__path">{{ deployment.path }}</span>
-      </a>
+        <a class="deployments__name" [routerLink]="overviewPath(deployment.name)">{{ deployment.name }}</a>
+        <exa-folder-link
+          class="deployments__folder"
+          [deployment]="deployment.name"
+          [path]="deployment.path"
+        ></exa-folder-link>
+      </div>
       } @empty {
       <p class="deployments__message">
         The launcher lists no deployments. Create one with <code>exasol install</code>, then reload this page.
