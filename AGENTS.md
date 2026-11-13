@@ -89,32 +89,30 @@ development loop.
 ## Status
 
 Done: the server, launcher and database integration, the deployment tiles and
-overview (`add-app-scaffold`, `refine-deployment-pages`), and long-running
-operations with Start, Stop, and the activity indicator (`add-operations`).
-Long launcher commands go through `internal/operations`; later changes reuse
-it.
+overview (`add-app-scaffold`, `refine-deployment-pages`), long-running
+operations with Start, Stop, and the activity indicator (`add-operations`),
+and the Settings page with configuration, deploy, destroy, and remove
+(`add-deployment-settings`). Long launcher commands go through
+`internal/operations`; later changes reuse it. Each deployment page has its
+own route segment (`overview`, `settings`) and drawer entry in `routes.ts`.
 
 The canvas already draws every remaining screen. Implement these as separate
 OpenSpec changes, one per session, in this order (the canvas artboard names
 in parentheses):
 
-1. `add-deployment-settings`: the Settings page (`Configuration`,
-   `DestroyDialog`). `config get --json`, `config set`, `config reset`, apply
-   with `deploy`, and a danger zone with `destroy`, `destroy --remove`, and
-   `remove`, each confirmed by typing the deployment name.
-2. `add-sidecar-management`: Sidecars and MCP server pages (`Sidecars`,
+1. `add-sidecar-management`: Sidecars and MCP server pages (`Sidecars`,
    `MCP`). `sidecar list/status/enable/disable`, `mcp status/enable/disable`,
    and `mcp instructions` with copyable client commands.
-3. `add-script-languages`: the Script languages page (`ScriptLanguages`).
+2. `add-script-languages`: the Script languages page (`ScriptLanguages`).
    `slc list/install/update/remove` and `slc custom install/update`, with the
    restart choice (`--no-restart`).
-4. `add-diagnostics`: the Diagnostics page (`Diagnostics`). `diag local`,
+3. `add-diagnostics`: the Diagnostics page (`Diagnostics`). `diag local`,
    `diag info` (show and download), guarded `diag unlock`, and copyable
    `shell host` and `shell container` commands.
-5. `add-deployment-creation`: the New deployment page (`NewDeployment`).
+4. `add-deployment-creation`: the New deployment page (`NewDeployment`).
    `install` and `init` for every preset; test only local deployments, since
    cloud ones take long and cost money.
-6. `add-launcher-tools`: the start page toolbar with Presets, Runtime cache,
+5. `add-launcher-tools`: the start page toolbar with Presets, Runtime cache,
    and Launcher pages (`Main`, `Presets`, `Cache`, `Launcher`).
    `presets list/export`, `cache list/clean/unlock`, `diag cache`, and
    `version --latest`.
@@ -135,3 +133,11 @@ Launcher findings that affect these changes:
   `launcher.Stream` turns them into readable lines.
 - Decide actions on the deployment listing's `status`, which checks the
   runtime; `info` can report a stale stored `deploymentState`.
+- The launcher's directory lock breaks when two launchers start on one
+  deployment at the same moment, leaving it locked with "invalid marker"
+  ([exasol-personal#515](https://github.com/exasol/exasol-personal/issues/515)).
+  The launcher client therefore runs short commands one at a time and
+  interrupts rather than kills a launcher; keep new launcher calls on it.
+  To recover, delete the empty `.dirmutex.*` files while no launcher runs.
+- Check destructive operations on a scratch deployment from
+  `exasol init local -d <name>`, which creates no VM, never on real ones.
