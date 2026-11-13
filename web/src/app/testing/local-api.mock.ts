@@ -8,7 +8,9 @@ import {
   McpInstructions,
   Operation,
   OperationKind,
+  OperationParameters,
   PingResult,
+  ScriptLanguages,
   Sidecar,
 } from '@exa/services/local-api/local-api.models';
 import { LocalApiService } from '@exa/services/local-api/local-api.service';
@@ -36,6 +38,9 @@ export interface LocalApiFixture {
   sidecars?: { [name: string]: Sidecar[] };
   /** Messages with which the API refuses to list a deployment's sidecars. */
   sidecarRefusals?: { [name: string]: string };
+  scriptLanguages?: { [name: string]: ScriptLanguages };
+  /** Messages with which the API refuses to list a deployment's script languages. */
+  scriptLanguageRefusals?: { [name: string]: string };
 }
 
 export const MCP_CLIENTS: McpClient[] = [
@@ -96,6 +101,40 @@ export const defaultSidecars = (): Sidecar[] => [
   }),
 ];
 
+export const defaultScriptLanguages = (): ScriptLanguages => ({
+  official: [
+    {
+      alias: 'JAVA',
+      language: 'java',
+      flavor: 'java-17',
+      version: '11.2.0',
+      aliases: ['JAVA', 'JAVA17'],
+      installed: true,
+      latest_release: false,
+    },
+    {
+      alias: 'PYTHON3',
+      language: 'python',
+      flavor: 'python-3.12',
+      version: '11.2.0',
+      aliases: ['PYTHON3', 'PYTHON312'],
+      installed: true,
+      latest_release: false,
+    },
+    {
+      alias: 'R',
+      language: 'r',
+      flavor: 'r-4.4',
+      version: '11.2.0',
+      aliases: ['R', 'R44'],
+      installed: false,
+      latest_release: false,
+    },
+    { alias: 'RUST', language: 'rust', flavor: '', aliases: ['RUST'], installed: false, latest_release: true },
+  ],
+  custom: [{ alias: 'MYPY3', language: 'python', source: '/Users/me/containers/my-python.tar.gz', available: true }],
+});
+
 export const localConfiguration = (overrides: Partial<Configuration> = {}): Configuration => ({
   infrastructure: {
     name: 'local',
@@ -134,8 +173,16 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
   openFolder: jest.fn(() => of(undefined)),
   listOperations: jest.fn(() => of(fixture.operations ?? [])),
   getOperation: jest.fn((id: string) => of((fixture.operations ?? []).find(op => op.id === id) ?? operation({ id }))),
-  runOperation: jest.fn((name: string, kind: OperationKind, sidecar?: string) =>
-    of(operation({ id: 'new', deployment: name, kind, sidecar }))
+  runOperation: jest.fn((name: string, kind: OperationKind, params?: OperationParameters) =>
+    of(
+      operation({
+        id: 'new',
+        deployment: name,
+        kind,
+        sidecar: params?.sidecar,
+        script_language: params?.script_language,
+      })
+    )
   ),
   getConfiguration: jest.fn((name: string) => of(fixture.configurations?.[name] ?? localConfiguration())),
   setConfiguration: jest.fn((name: string) => of(fixture.configurations?.[name] ?? localConfiguration())),
@@ -143,6 +190,10 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
   listSidecars: jest.fn((name: string) => {
     const refusal = fixture.sidecarRefusals?.[name];
     return refusal ? conflict(refusal) : of(fixture.sidecars?.[name] ?? defaultSidecars());
+  }),
+  listScriptLanguages: jest.fn((name: string) => {
+    const refusal = fixture.scriptLanguageRefusals?.[name];
+    return refusal ? conflict(refusal) : of(fixture.scriptLanguages?.[name] ?? defaultScriptLanguages());
   }),
   listMcpClients: jest.fn(() => of(MCP_CLIENTS)),
   getMcpInstructions: jest.fn((name: string, client: string) => of(mcpInstructions(client))),

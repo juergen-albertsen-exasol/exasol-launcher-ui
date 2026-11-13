@@ -3,6 +3,7 @@ import { NavItem } from '@exasol/ui-common';
 import { PageDeploymentsComponent } from './pages/page-deployments/page-deployments.component';
 import { PageMcpComponent } from './pages/page-mcp/page-mcp.component';
 import { PageOverviewComponent } from './pages/page-overview/page-overview.component';
+import { PageScriptLanguagesComponent } from './pages/page-script-languages/page-script-languages.component';
 import { PageSettingsComponent } from './pages/page-settings/page-settings.component';
 import { PageSidecarsComponent } from './pages/page-sidecars/page-sidecars.component';
 import { ShellComponent } from './shell/shell.component';
@@ -15,6 +16,7 @@ export const DeploymentPage = {
   OVERVIEW: 'overview',
   SIDECARS: 'sidecars',
   MCP: 'mcp',
+  SCRIPT_LANGUAGES: 'script-languages',
   SETTINGS: 'settings',
 } as const;
 export type DeploymentPage = (typeof DeploymentPage)[keyof typeof DeploymentPage];
@@ -46,6 +48,11 @@ export const APP_NAV_ITEMS: { [key: string]: NavItem } = {
     path: '',
     faIcon: ['fa-robot'],
     text: 'MCP server',
+  },
+  [DeploymentPage.SCRIPT_LANGUAGES]: {
+    path: '',
+    faIcon: ['fa-code'],
+    text: 'Script languages',
   },
   [DeploymentPage.SETTINGS]: {
     path: '',
@@ -86,6 +93,7 @@ export const appRoutes: Route[] = [
       page(DeploymentPage.OVERVIEW, PageOverviewComponent),
       page(DeploymentPage.SIDECARS, PageSidecarsComponent),
       page(DeploymentPage.MCP, PageMcpComponent),
+      page(DeploymentPage.SCRIPT_LANGUAGES, PageScriptLanguagesComponent),
       page(DeploymentPage.SETTINGS, PageSettingsComponent),
       { path: '', redirectTo: DeploymentPage.OVERVIEW, pathMatch: 'full' },
     ],

@@ -4,7 +4,7 @@ import { EMPTY, catchError, tap } from 'rxjs';
 import { ErrorNotificationsAction } from '@exasol/ui-common';
 import { Operation, OperationStatus } from '@exa/services/local-api/local-api.models';
 import { LocalApiService, problemDetail } from '@exa/services/local-api/local-api.service';
-import { ACTION } from './operation-labels';
+import { ACTION, operationSubject } from './operation-labels';
 import { LoadOperationsAction, RunOperationAction } from './operations.actions';
 
 export interface OperationsStateModel {
@@ -45,14 +45,12 @@ export class OperationsState {
   }
 
   @Action(RunOperationAction)
-  run(ctx: StateContext<OperationsStateModel>, { deployment, kind, sidecar }: RunOperationAction) {
-    const request = sidecar
-      ? this.api.runOperation(deployment, kind, sidecar)
-      : this.api.runOperation(deployment, kind);
+  run(ctx: StateContext<OperationsStateModel>, { deployment, kind, params }: RunOperationAction) {
+    const request = params ? this.api.runOperation(deployment, kind, params) : this.api.runOperation(deployment, kind);
     return request.pipe(
       tap(operation => ctx.patchState({ operations: [operation, ...ctx.getState().operations] })),
       catchError(error => {
-        const target = sidecar ? `${sidecar} on ${deployment}` : deployment;
+        const target = operationSubject(deployment, kind, params?.sidecar ?? params?.script_language);
         ctx.dispatch(new ErrorNotificationsAction(`Cannot ${ACTION[kind]} ${target}: ${problemDetail(error)}`));
         return EMPTY;
       })

@@ -13,6 +13,7 @@ import { APP_NAV_ITEMS, appRoutes, withAppRouterConfig } from './routes';
 import { SessionService } from './services/session/session.service';
 import { DeploymentsState } from './store/deployments/deployments.state';
 import { LoadOperationsAction } from './store/operations/operations.actions';
+import { ScriptLanguagesState } from './store/script-languages/script-languages.state';
 import { SettingsState } from './store/settings/settings.state';
 import { SidecarsState } from './store/sidecars/sidecars.state';
 import { operation, provideLocalApi, summary } from './testing/local-api.mock';
@@ -34,7 +35,14 @@ describe('AppComponent', () => {
       providers: [
         provideRouter(appRoutes, withComponentInputBinding(), withAppRouterConfig()),
         provideNoopAnimations(),
-        provideStore([NotificationsState, DeploymentsState, OperationsState, SettingsState, SidecarsState]),
+        provideStore([
+          NotificationsState,
+          DeploymentsState,
+          OperationsState,
+          SettingsState,
+          SidecarsState,
+          ScriptLanguagesState,
+        ]),
         provideLocalApi({ deployments: [summary('default'), summary('test')], operations: [operation()] }),
         { provide: NAV_ITEMS, useValue: APP_NAV_ITEMS },
         { provide: OperationsPollingService, useValue: { start: jest.fn() } },
@@ -91,6 +99,7 @@ describe('AppComponent', () => {
         'Overview',
         'Sidecars',
         'MCP server',
+        'Script languages',
         'Settings',
       ]);
       expect(active.map(link => link.nativeElement.getAttribute('href'))).toEqual(['/deployments/test/overview']);
@@ -105,6 +114,16 @@ describe('AppComponent', () => {
       expect(TestBed.inject(Router).url).toBe('/deployments/test/sidecars');
       expect(root.query(By.css('exa-page-sidecars'))).toBeTruthy();
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Sidecars');
+    });
+
+    it('opens the Script languages page from the navigation drawer', async () => {
+      root.query(By.css('.nav-content-wrapper a[href="/deployments/test/script-languages"]')).nativeElement.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(Router).url).toBe('/deployments/test/script-languages');
+      expect(root.query(By.css('exa-page-script-languages'))).toBeTruthy();
+      expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Script languages');
     });
 
     it('opens the Settings page from the navigation drawer', async () => {

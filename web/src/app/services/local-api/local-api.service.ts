@@ -9,9 +9,11 @@ import {
   McpInstructions,
   Operation,
   OperationKind,
+  OperationParameters,
   OptionValue,
   PingResult,
   Problem,
+  ScriptLanguages,
   Sidecar,
 } from './local-api.models';
 
@@ -34,9 +36,13 @@ export class LocalApiService {
     return this.http.post<void>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/open-folder`, null);
   }
 
-  runOperation(name: string, kind: OperationKind, sidecar = ''): Observable<Operation> {
+  runOperation(name: string, kind: OperationKind, params: OperationParameters = {}): Observable<Operation> {
     const deployment = `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}`;
-    const sidecarPath = `${deployment}/sidecars/${encodeURIComponent(sidecar)}`;
+    const sidecarPath = `${deployment}/sidecars/${encodeURIComponent(params.sidecar ?? '')}`;
+    const scriptLanguages = `${deployment}/script-languages`;
+    const scriptLanguagePath = `${scriptLanguages}/${encodeURIComponent(params.script_language ?? '')}`;
+    const restart = { restart: params.restart ?? true };
+    const custom = { alias: params.script_language, language: params.language, source: params.source, ...restart };
     switch (kind) {
       case 'destroy_and_remove':
         return this.http.post<Operation>(`${deployment}/destroy`, { remove_folder: true });
@@ -46,6 +52,16 @@ export class LocalApiService {
         return this.http.post<Operation>(`${sidecarPath}/disable`, null);
       case 'remove_sidecar':
         return this.http.post<Operation>(`${sidecarPath}/disable`, { remove_definition: true });
+      case 'install_script_language':
+        return this.http.post<Operation>(`${scriptLanguagePath}/install`, restart);
+      case 'update_script_language':
+        return this.http.post<Operation>(`${scriptLanguagePath}/update`, restart);
+      case 'remove_script_language':
+        return this.http.post<Operation>(`${scriptLanguagePath}/remove`, restart);
+      case 'install_custom_script_language':
+        return this.http.post<Operation>(`${scriptLanguages}/custom/install`, custom);
+      case 'update_custom_script_language':
+        return this.http.post<Operation>(`${scriptLanguages}/custom/update`, custom);
       default:
         return this.http.post<Operation>(`${deployment}/${kind}`, null);
     }
@@ -69,6 +85,10 @@ export class LocalApiService {
 
   listSidecars(name: string): Observable<Sidecar[]> {
     return this.http.get<Sidecar[]>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/sidecars`);
+  }
+
+  listScriptLanguages(name: string): Observable<ScriptLanguages> {
+    return this.http.get<ScriptLanguages>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/script-languages`);
   }
 
   listMcpClients(name: string): Observable<McpClient[]> {

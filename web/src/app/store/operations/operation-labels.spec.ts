@@ -25,6 +25,18 @@ describe('operation labels', () => {
     );
   });
 
+  it('names the container of script language operations', () => {
+    expect(operationLabel(operation({ kind: 'install_script_language', script_language: 'PYTHON3' }))).toBe(
+      'Installing PYTHON3 on default'
+    );
+    expect(
+      operationLabel(operation({ kind: 'remove_script_language', script_language: 'MYPY3', status: 'succeeded' }))
+    ).toBe('Removed MYPY3 from default');
+    expect(
+      operationLabel(operation({ kind: 'update_custom_script_language', script_language: 'MYPY3', status: 'failed' }))
+    ).toBe('Updating MYPY3 on default failed');
+  });
+
   it('formats durations and ages', () => {
     expect(formatDuration(45_000)).toBe('45s');
     expect(formatDuration(72_000)).toBe('1m 12s');

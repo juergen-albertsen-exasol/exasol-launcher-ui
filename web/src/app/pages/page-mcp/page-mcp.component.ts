@@ -78,13 +78,13 @@ export class PageMcpComponent {
   }
 
   enable(): void {
-    this.store.dispatch(new RunOperationAction(this.name(), OperationKind.ENABLE_SIDECAR, MCP_SIDECAR));
+    this.store.dispatch(new RunOperationAction(this.name(), OperationKind.ENABLE_SIDECAR, { sidecar: MCP_SIDECAR }));
   }
 
   disable(): void {
     const deployment = this.name();
     SidecarDisableDialogComponent.open(this.dialog, { deployment, sidecar: MCP_SIDECAR })
       .pipe(filter(kind => !!kind))
-      .subscribe(kind => this.store.dispatch(new RunOperationAction(deployment, kind, MCP_SIDECAR)));
+      .subscribe(kind => this.store.dispatch(new RunOperationAction(deployment, kind, { sidecar: MCP_SIDECAR })));
   }
 }

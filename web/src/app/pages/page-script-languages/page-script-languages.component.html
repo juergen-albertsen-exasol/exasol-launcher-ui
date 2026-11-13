@@ -1,0 +1,205 @@
+<div class="page-wrapper script-languages">
+  @if (failed(); as operation) {
+  <p class="script-languages__failure" role="alert">
+    <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+    <span>{{ runningLabel(operation) }} failed: {{ operation.error }}</span>
+  </p>
+  } @if (running(); as operation) {
+  <section class="script-languages__panel" aria-label="Operation">
+    <exa-operation-progress [operation]="operation"></exa-operation-progress>
+  </section>
+  } @if (loadError(); as error) {
+  <p class="script-languages__message script-languages__message--error">{{ error }}</p>
+  } @else if (scriptLanguages(); as languages) {
+  <section class="script-languages__panel" aria-label="Script languages">
+    <label class="script-languages__restart">
+      <input type="checkbox" [checked]="restart()" (change)="restart.set($any($event.target).checked)" />
+      Restart the database now (otherwise changes apply on the next start)
+    </label>
+
+    <div class="script-languages__box" data-label="Official script language containers">
+      <div class="script-languages__scroll">
+        <table class="script-languages__table script-languages__table--official">
+          <thead>
+            <tr>
+              <th>Language</th>
+              <th>Flavor</th>
+              <th>Version</th>
+              <th>Aliases</th>
+              <th>State</th>
+              <th><span class="script-languages__hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (official of languages.official; track official.alias) {
+            <tr class="script-languages__official">
+              <td class="script-languages__language">
+                <strong>{{ official.language }}</strong>
+              </td>
+              <td class="script-languages__flavor">
+                {{ official.latest_release ? 'latest exasol-labs release' : official.flavor }}
+              </td>
+              <td>{{ official.version }}</td>
+              <td>{{ official.aliases.join(', ') }}</td>
+              <td class="script-languages__state">
+                @if (official.installed) {
+                <span class="script-languages__word script-languages__word--ok"
+                  ><span class="script-languages__dot"></span>installed</span
+                >
+                } @else {
+                <span class="script-languages__word">not installed</span>
+                }
+              </td>
+              <td class="script-languages__actions">
+                @if (official.installed) {
+                <span class="script-languages__buttons">
+                  <button
+                    class="script-languages__update"
+                    type="button"
+                    [disabled]="!!running()"
+                    (click)="run(kind.UPDATE_SCRIPT_LANGUAGE, official.alias)"
+                  >
+                    Update
+                  </button>
+                  <button
+                    class="script-languages__remove"
+                    type="button"
+                    [disabled]="!!running()"
+                    (click)="remove(official.alias)"
+                  >
+                    Remove…
+                  </button>
+                </span>
+                } @else {
+                <exa-button
+                  class="script-languages__install"
+                  [squared]="true"
+                  [shorter]="true"
+                  [disabled]="!!running()"
+                  (clickButton)="run(kind.INSTALL_SCRIPT_LANGUAGE, official.alias)"
+                >
+                  Install
+                </exa-button>
+                }
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="script-languages__box" data-label="Custom script language containers">
+      @if (languages.custom.length) {
+      <div class="script-languages__scroll">
+        <table class="script-languages__table script-languages__table--custom">
+          <thead>
+            <tr>
+              <th>Alias</th>
+              <th>Language</th>
+              <th>Source</th>
+              <th>State</th>
+              <th><span class="script-languages__hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (custom of languages.custom; track custom.alias) {
+            <tr class="script-languages__custom">
+              <td class="script-languages__alias">
+                <strong>{{ custom.alias }}</strong>
+              </td>
+              <td>{{ custom.language }}</td>
+              <td class="script-languages__source">{{ custom.source }}</td>
+              <td class="script-languages__state">
+                @if (custom.available) {
+                <span class="script-languages__word script-languages__word--ok"
+                  ><span class="script-languages__dot"></span>installed</span
+                >
+                } @else {
+                <span class="script-languages__word script-languages__word--error">
+                  <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>unavailable
+                </span>
+                }
+              </td>
+              <td class="script-languages__actions">
+                <button
+                  class="script-languages__remove"
+                  type="button"
+                  [disabled]="!!running()"
+                  (click)="remove(custom.alias)"
+                >
+                  Remove…
+                </button>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+      <form class="script-languages__form" (submit)="$event.preventDefault()">
+        <div class="script-languages__fields">
+          <div class="script-languages__field">
+            <label for="script-language-alias">Alias</label>
+            <input
+              id="script-language-alias"
+              name="alias"
+              placeholder="Used in CREATE <alias> SCALAR SCRIPT"
+              autocomplete="off"
+              [value]="alias()"
+              (input)="alias.set($any($event.target).value)"
+            />
+          </div>
+          <div class="script-languages__field">
+            <label for="script-language-language">Language</label>
+            <input
+              id="script-language-language"
+              name="language"
+              placeholder="python"
+              autocomplete="off"
+              [value]="language()"
+              (input)="language.set($any($event.target).value)"
+            />
+          </div>
+          <div class="script-languages__field script-languages__field--wide">
+            <label for="script-language-source">Container tarball</label>
+            <input
+              id="script-language-source"
+              name="source"
+              placeholder="A local path or an HTTPS URL"
+              autocomplete="off"
+              [value]="source()"
+              (input)="source.set($any($event.target).value)"
+            />
+          </div>
+        </div>
+        <div class="script-languages__form-actions">
+          <button
+            class="script-languages__update-custom"
+            type="button"
+            [disabled]="!!running() || !customComplete()"
+            (click)="runCustom(kind.UPDATE_CUSTOM_SCRIPT_LANGUAGE)"
+          >
+            Update existing
+          </button>
+          <exa-button
+            class="script-languages__install-custom"
+            [squared]="true"
+            [disabled]="!!running() || !customComplete()"
+            (clickButton)="runCustom(kind.INSTALL_CUSTOM_SCRIPT_LANGUAGE)"
+          >
+            Install
+          </exa-button>
+        </div>
+      </form>
+    </div>
+
+    <p class="script-languages__note">
+      Installing, updating, or removing a container restarts the database unless you clear the restart option. Local
+      deployments ship without any container installed.
+    </p>
+  </section>
+  } @else {
+  <p class="script-languages__message">Loading…</p>
+  }
+</div>

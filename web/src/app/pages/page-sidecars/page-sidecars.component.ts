@@ -38,13 +38,13 @@ export class PageSidecarsComponent {
   }
 
   enable(sidecar: Sidecar): void {
-    this.store.dispatch(new RunOperationAction(this.name(), OperationKind.ENABLE_SIDECAR, sidecar.name));
+    this.store.dispatch(new RunOperationAction(this.name(), OperationKind.ENABLE_SIDECAR, { sidecar: sidecar.name }));
   }
 
   disable(sidecar: Sidecar): void {
     const deployment = this.name();
     SidecarDisableDialogComponent.open(this.dialog, { deployment, sidecar: sidecar.name })
       .pipe(filter(kind => !!kind))
-      .subscribe(kind => this.store.dispatch(new RunOperationAction(deployment, kind, sidecar.name)));
+      .subscribe(kind => this.store.dispatch(new RunOperationAction(deployment, kind, { sidecar: sidecar.name })));
   }
 }

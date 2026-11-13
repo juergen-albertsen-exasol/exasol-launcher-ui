@@ -126,7 +126,7 @@ describe('PageSidecarsComponent', () => {
     click(row(root, 'dash-server'), '.sidecars__enable');
     await refresh();
 
-    expect(api.runOperation).toHaveBeenCalledWith('default', 'enable_sidecar', 'dash-server');
+    expect(api.runOperation).toHaveBeenCalledWith('default', 'enable_sidecar', { sidecar: 'dash-server' });
     events.next({ type: 'line', line: 'Pulling the image' });
     await refresh();
     expect(text(root, '.operation-progress__text')).toBe('Enabling dash-server on default.');
@@ -162,7 +162,7 @@ describe('PageSidecarsComponent', () => {
         data: { deployment: 'default', sidecar: 'kafka' },
       })
     );
-    expect(api.runOperation).toHaveBeenCalledWith('default', 'remove_sidecar', 'kafka');
+    expect(api.runOperation).toHaveBeenCalledWith('default', 'remove_sidecar', { sidecar: 'kafka' });
 
     api.listSidecars.mockReturnValue(of(defaultSidecars().filter(entry => entry.name !== 'kafka')));
     const finished = operation({ id: 'new', kind: 'remove_sidecar', sidecar: 'kafka', status: 'succeeded' });

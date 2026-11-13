@@ -149,7 +149,7 @@ describe('PageMcpComponent', () => {
 
     root.query(By.css('.mcp__enable button')).nativeElement.click();
     await refresh();
-    expect(api.runOperation).toHaveBeenCalledWith('default', 'enable_sidecar', 'mcp');
+    expect(api.runOperation).toHaveBeenCalledWith('default', 'enable_sidecar', { sidecar: 'mcp' });
     events.next({ type: 'line', line: 'Waiting for the MCP server' });
     await refresh();
     expect(text(root, '.operation-progress__log')).toBe('Waiting for the MCP server');
@@ -172,7 +172,7 @@ describe('PageMcpComponent', () => {
     root.query(By.css('.mcp__disable')).nativeElement.click();
     await refresh();
 
-    expect(api.runOperation).toHaveBeenCalledWith('default', 'disable_sidecar', 'mcp');
+    expect(api.runOperation).toHaveBeenCalledWith('default', 'disable_sidecar', { sidecar: 'mcp' });
   });
 
   it('shows why the launcher refuses the client instructions', async () => {

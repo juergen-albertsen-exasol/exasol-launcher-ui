@@ -33,9 +33,9 @@ describe('LocalApiService', () => {
 
   it('lists sidecars and runs sidecar operations on their endpoints', () => {
     service.listSidecars('default').subscribe();
-    service.runOperation('default', 'enable_sidecar', 'dash-server').subscribe();
-    service.runOperation('default', 'disable_sidecar', 'kafka').subscribe();
-    service.runOperation('default', 'remove_sidecar', 'kafka').subscribe();
+    service.runOperation('default', 'enable_sidecar', { sidecar: 'dash-server' }).subscribe();
+    service.runOperation('default', 'disable_sidecar', { sidecar: 'kafka' }).subscribe();
+    service.runOperation('default', 'remove_sidecar', { sidecar: 'kafka' }).subscribe();
 
     const requests = http.match(() => true);
     expect(requests.map(request => [request.request.method, request.request.url, request.request.body])).toEqual([
@@ -43,6 +43,28 @@ describe('LocalApiService', () => {
       ['POST', '/api/v1/deployments/default/sidecars/dash-server/enable', null],
       ['POST', '/api/v1/deployments/default/sidecars/kafka/disable', null],
       ['POST', '/api/v1/deployments/default/sidecars/kafka/disable', { remove_definition: true }],
+    ]);
+    requests.forEach(request => request.flush({}));
+  });
+
+  it('lists script languages and runs script language operations on their endpoints', () => {
+    service.listScriptLanguages('default').subscribe();
+    service.runOperation('default', 'install_script_language', { script_language: 'R' }).subscribe();
+    service.runOperation('default', 'update_script_language', { script_language: 'RUST', restart: true }).subscribe();
+    service.runOperation('default', 'remove_script_language', { script_language: 'JAVA', restart: false }).subscribe();
+    const custom = { script_language: 'MYPY3', language: 'python', source: '/tmp/my.tar.gz', restart: false };
+    service.runOperation('default', 'install_custom_script_language', custom).subscribe();
+    service.runOperation('default', 'update_custom_script_language', custom).subscribe();
+
+    const body = { alias: 'MYPY3', language: 'python', source: '/tmp/my.tar.gz', restart: false };
+    const requests = http.match(() => true);
+    expect(requests.map(request => [request.request.method, request.request.url, request.request.body])).toEqual([
+      ['GET', '/api/v1/deployments/default/script-languages', null],
+      ['POST', '/api/v1/deployments/default/script-languages/R/install', { restart: true }],
+      ['POST', '/api/v1/deployments/default/script-languages/RUST/update', { restart: true }],
+      ['POST', '/api/v1/deployments/default/script-languages/JAVA/remove', { restart: false }],
+      ['POST', '/api/v1/deployments/default/script-languages/custom/install', body],
+      ['POST', '/api/v1/deployments/default/script-languages/custom/update', body],
     ]);
     requests.forEach(request => request.flush({}));
   });

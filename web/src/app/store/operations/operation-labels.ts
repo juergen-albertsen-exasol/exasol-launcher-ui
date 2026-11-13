@@ -11,6 +11,11 @@ export const RUNNING_VERB: Record<OperationKind, string> = {
   enable_sidecar: 'Enabling',
   disable_sidecar: 'Disabling',
   remove_sidecar: 'Removing',
+  install_script_language: 'Installing',
+  update_script_language: 'Updating',
+  remove_script_language: 'Removing',
+  install_custom_script_language: 'Installing',
+  update_custom_script_language: 'Updating',
 };
 const DONE_VERB: Record<OperationKind, string> = {
   start: 'Started',
@@ -22,6 +27,11 @@ const DONE_VERB: Record<OperationKind, string> = {
   enable_sidecar: 'Enabled',
   disable_sidecar: 'Disabled',
   remove_sidecar: 'Removed',
+  install_script_language: 'Installed',
+  update_script_language: 'Updated',
+  remove_script_language: 'Removed',
+  install_custom_script_language: 'Installed',
+  update_custom_script_language: 'Updated',
 };
 /** What a request for an operation asks for, as in "Cannot start default". */
 export const ACTION: Record<OperationKind, string> = {
@@ -34,6 +44,11 @@ export const ACTION: Record<OperationKind, string> = {
   enable_sidecar: 'enable',
   disable_sidecar: 'disable',
   remove_sidecar: 'remove',
+  install_script_language: 'install',
+  update_script_language: 'update',
+  remove_script_language: 'remove',
+  install_custom_script_language: 'install',
+  update_custom_script_language: 'update',
 };
 const NOUN: Partial<Record<OperationKind, string>> = {
   start: 'Start',
@@ -44,14 +59,18 @@ const NOUN: Partial<Record<OperationKind, string>> = {
   remove: 'Folder removal',
 };
 
-/** What an operation acts on: the deployment, or a sidecar of it. */
-const subject = (operation: Operation): string => {
-  if (!operation.sidecar) {
-    return operation.deployment;
+const REMOVING: OperationKind[] = [OperationKind.REMOVE_SIDECAR, OperationKind.REMOVE_SCRIPT_LANGUAGE];
+
+/** What an operation acts on: the deployment, or a part of it such as a sidecar. */
+export const operationSubject = (deployment: string, kind: OperationKind, part?: string): string => {
+  if (!part) {
+    return deployment;
   }
-  const preposition = operation.kind === OperationKind.REMOVE_SIDECAR ? 'from' : 'on';
-  return `${operation.sidecar} ${preposition} ${operation.deployment}`;
+  return `${part} ${REMOVING.includes(kind) ? 'from' : 'on'} ${deployment}`;
 };
+
+const subject = (operation: Operation): string =>
+  operationSubject(operation.deployment, operation.kind, operation.sidecar ?? operation.script_language);
 
 /** Names a running operation, as in "Starting default" or "Enabling mcp on default". */
 export const runningLabel = (operation: Operation): string => `${RUNNING_VERB[operation.kind]} ${subject(operation)}`;
