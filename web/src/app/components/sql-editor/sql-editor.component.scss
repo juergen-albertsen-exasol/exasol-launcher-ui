@@ -1,0 +1,14 @@
+@import 'colors';
+
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+  --sql-font-mono: 'IBM Plex Mono', Menlo, monospace;
+  --sql-string: #{$blue};
+  --sql-error: #{$red};
+}
+
+.sql-editor {
+  height: 100%;
+}
