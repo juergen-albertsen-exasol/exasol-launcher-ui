@@ -18,9 +18,34 @@ import (
 type Kind string
 
 const (
-	KindStart Kind = "start"
-	KindStop  Kind = "stop"
+	KindStart            Kind = "start"
+	KindStop             Kind = "stop"
+	KindDeploy           Kind = "deploy"
+	KindDestroy          Kind = "destroy"
+	KindDestroyAndRemove Kind = "destroy_and_remove"
+	KindRemove           Kind = "remove"
 )
+
+// command returns the launcher arguments that run kind, without the
+// deployment directory, and whether the command prints a lifecycle result.
+func (k Kind) command() ([]string, bool) {
+	const approve = "--auto-approve"
+
+	switch k {
+	case KindStart, KindStop:
+		return []string{string(k), "--json"}, true
+	case KindDeploy:
+		return []string{"deploy"}, false
+	case KindDestroy:
+		return []string{"destroy", approve}, false
+	case KindDestroyAndRemove:
+		return []string{"destroy", "--remove", approve}, false
+	case KindRemove:
+		return []string{"remove", approve}, false
+	default:
+		return []string{string(k)}, false
+	}
+}
 
 // Status is an operation's progress.
 type Status string
@@ -122,7 +147,8 @@ func (m *Manager) Start(
 	m.order = append(m.order, current.snapshot.ID)
 	m.running[deployment.Name] = current.snapshot.ID
 
-	go m.run(current, string(kind), "--json", "--deployment-dir", deployment.Path)
+	args, reportsResult := kind.command()
+	go m.run(current, reportsResult, append(args, "--deployment-dir", deployment.Path)...)
 
 	return current.snapshot, nil
 }
@@ -190,11 +216,19 @@ func (m *Manager) Watch(operationID string) (<-chan struct{}, func()) {
 	}
 }
 
-func (m *Manager) run(current *operation, args ...string) {
-	var result launcher.LifecycleResult
+func (m *Manager) run(current *operation, reportsResult bool, args ...string) {
+	var (
+		result *launcher.LifecycleResult
+		target any
+	)
+
+	if reportsResult {
+		result = &launcher.LifecycleResult{}
+		target = result
+	}
 
 	onLine := func(line string) { m.addLine(current, line) }
-	err := m.streamer.Stream(m.ctx, onLine, &result, args...)
+	err := m.streamer.Stream(m.ctx, onLine, target, args...)
 
 	m.mu.Lock()
 	finishedAt := m.now()
@@ -205,7 +239,7 @@ func (m *Manager) run(current *operation, args ...string) {
 		current.snapshot.Error = redact(err.Error(), current.secret)
 	} else {
 		current.snapshot.Status = StatusSucceeded
-		current.snapshot.Result = &result
+		current.snapshot.Result = result
 	}
 
 	delete(m.running, current.snapshot.Deployment)

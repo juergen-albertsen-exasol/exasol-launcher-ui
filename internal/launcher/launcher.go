@@ -150,8 +150,8 @@ func (c *Client) Info(ctx context.Context, deploymentDir string) (Info, error) {
 }
 
 // Stream runs a long launcher command, calls onLine for each line it writes
-// to stderr, and decodes its stdout as JSON into target. A failed command's
-// error carries the last line it wrote to stderr.
+// to stderr, and decodes its stdout as JSON into target unless target is nil.
+// A failed command's error carries the last line it wrote to stderr.
 func (c *Client) Stream(
 	ctx context.Context,
 	onLine func(line string),
@@ -193,6 +193,10 @@ func (c *Client) Stream(
 		}
 
 		return fmt.Errorf("%q failed: %w", command, err)
+	}
+
+	if target == nil {
+		return nil
 	}
 
 	if err := json.Unmarshal(stdout.Bytes(), target); err != nil {

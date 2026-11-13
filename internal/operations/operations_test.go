@@ -1,6 +1,7 @@
 package operations_test
 
 import (
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -235,4 +236,36 @@ func TestWatchingAnUnknownOperationEndsAtOnce(t *testing.T) {
 
 	_, open := <-changes
 	assert.False(t, open)
+}
+
+func TestKindsRunTheirLauncherCommands(t *testing.T) {
+	t.Parallel()
+
+	commands := map[operations.Kind][]string{
+		operations.KindDeploy:           {"deploy"},
+		operations.KindDestroy:          {"destroy", "--auto-approve"},
+		operations.KindDestroyAndRemove: {"destroy", "--remove", "--auto-approve"},
+		operations.KindRemove:           {"remove", "--auto-approve"},
+	}
+
+	for kind, command := range commands {
+		t.Run(string(kind), func(t *testing.T) {
+			t.Parallel()
+
+			fake := launchertest.NewFake(t)
+			args := append(slices.Clone(command), "--deployment-dir", defaultDeployment.Path)
+			fake.RespondWithProgress("Working\n", "no JSON here", args...)
+
+			manager := newManager(t, fake, nil)
+
+			started, err := manager.Start(defaultDeployment, kind, "")
+			require.NoError(t, err)
+
+			snapshot, lines := waitUntilFinished(t, manager, started.ID)
+
+			assert.Equal(t, operations.StatusSucceeded, snapshot.Status, snapshot.Error)
+			assert.Nil(t, snapshot.Result)
+			assert.Equal(t, []string{"Working"}, lines)
+		})
+	}
 }

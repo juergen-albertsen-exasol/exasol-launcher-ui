@@ -328,3 +328,152 @@ func TestAFinishedOperationRefreshesTheListing(t *testing.T) {
 
 	assert.Equal(t, before+1, listCalls())
 }
+
+func (f operationsFixture) postBody(t *testing.T, target, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, target,
+		strings.NewReader(body))
+	recorder := httptest.NewRecorder()
+	f.handler.ServeHTTP(recorder, request)
+
+	return recorder
+}
+
+func TestDeployingAnInitializedDeployment(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	deployArgs := []string{"deploy", "--deployment-dir", "/deployments/test"}
+	fixture.fake.RespondWithProgress("Creating the VM\n", "", deployArgs...)
+
+	response := fixture.call(t, http.MethodPost, "/api/v1/deployments/test/deploy")
+
+	require.Equal(t, http.StatusAccepted, response.Code)
+
+	started := decode[operationView](t, response)
+	assert.Equal(t, operations.KindDeploy, started.Kind)
+	assert.Equal(t, "test", started.Deployment)
+	assert.Equal(t, "running", started.Status)
+	assert.Equal(t, "/api/v1/operations/"+started.ID, response.Header().Get("Location"))
+
+	finished := fixture.waitFor(t, started.ID, "succeeded")
+	assert.Nil(t, finished.Result)
+	assert.Contains(t, fixture.fake.Calls(), "deploy --deployment-dir /deployments/test")
+}
+
+func TestDestroyingKeepsTheFolderByDefault(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	fixture.fake.RespondWithProgress("", "",
+		"destroy", "--auto-approve", "--deployment-dir", "/deployments/default")
+
+	started := fixture.post(t, "/api/v1/deployments/default/destroy")
+
+	assert.Equal(t, operations.KindDestroy, started.Kind)
+	fixture.waitFor(t, started.ID, "succeeded")
+}
+
+func TestDestroyingAndRemovingTheFolder(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	destroyArgs := []string{
+		"destroy", "--remove", "--auto-approve", "--deployment-dir", "/deployments/default",
+	}
+	fixture.fake.RespondWithProgress("", "", destroyArgs...)
+	fixture.fake.RespondAfter(destroyArgs, `[
+	  {"name": "test", "path": "/deployments/test", "status": "stopped",
+	   "infrastructure": "aws", "installation": "exasol"}
+	]`, listArgs...)
+
+	response := fixture.postBody(t, "/api/v1/deployments/default/destroy",
+		`{"remove_folder": true}`)
+
+	require.Equal(t, http.StatusAccepted, response.Code)
+
+	started := decode[operationView](t, response)
+	assert.Equal(t, operations.KindDestroyAndRemove, started.Kind)
+	fixture.waitFor(t, started.ID, "succeeded")
+
+	listing := decode[[]deploymentSummary](t,
+		fixture.call(t, http.MethodGet, "/api/v1/deployments"))
+	assert.Equal(t, []string{"test"}, deploymentNames(listing))
+}
+
+func TestRemovingADeploymentFolder(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	removeArgs := []string{"remove", "--auto-approve", "--deployment-dir", "/deployments/test"}
+	fixture.fake.RespondWithProgress("", "", removeArgs...)
+	fixture.fake.RespondAfter(removeArgs, `[
+	  {"name": "default", "path": "/deployments/default", "status": "database_ready",
+	   "infrastructure": "local", "installation": "local"}
+	]`, listArgs...)
+
+	response := fixture.call(t, http.MethodPost, "/api/v1/deployments/test/remove")
+
+	require.Equal(t, http.StatusAccepted, response.Code)
+
+	started := decode[operationView](t, response)
+	assert.Equal(t, operations.KindRemove, started.Kind)
+	fixture.waitFor(t, started.ID, "succeeded")
+
+	assert.Contains(
+		t,
+		fixture.fake.Calls(),
+		"remove --auto-approve --deployment-dir /deployments/test",
+	)
+
+	listing := decode[[]deploymentSummary](t,
+		fixture.call(t, http.MethodGet, "/api/v1/deployments"))
+	assert.Equal(t, []string{"default"}, deploymentNames(listing))
+}
+
+func TestDestroyWaitsForARunningOperation(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+	startArgs := lifecycleArgs("start", "/deployments/default")
+	fixture.fake.RespondWithProgress("", runningResult, startArgs...)
+	fixture.fake.Hold(startArgs...)
+
+	defer fixture.fake.Release(startArgs...)
+
+	require.Equal(t, http.StatusAccepted,
+		fixture.call(t, http.MethodPost, "/api/v1/deployments/default/start").Code)
+
+	response := fixture.postBody(
+		t,
+		"/api/v1/deployments/default/destroy",
+		`{"remove_folder": true}`,
+	)
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+
+	for _, call := range fixture.fake.Calls() {
+		assert.NotContains(t, call, "destroy")
+	}
+}
+
+func TestNewOperationsOfAnUnknownDeploymentAreNotFound(t *testing.T) {
+	t.Parallel()
+
+	fixture := newOperationsFixture(t)
+
+	for _, action := range []string{"deploy", "destroy", "remove"} {
+		response := fixture.call(t, http.MethodPost, "/api/v1/deployments/unknown/"+action)
+		assert.Equal(t, http.StatusNotFound, response.Code, action)
+	}
+}
+
+func deploymentNames(listing []deploymentSummary) []string {
+	names := make([]string, 0, len(listing))
+	for _, deployment := range listing {
+		names = append(names, deployment.Name)
+	}
+
+	return names
+}
