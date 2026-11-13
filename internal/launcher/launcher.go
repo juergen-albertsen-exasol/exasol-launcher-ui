@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -19,6 +20,7 @@ const (
 	DefaultExecutable = "exasol"
 
 	listingCacheTTL = 10 * time.Second
+	interruptGrace  = 10 * time.Second
 
 	scanBufferSize = 64 * 1024
 	maxLineSize    = 1024 * 1024
@@ -162,7 +164,7 @@ func (c *Client) Stream(
 
 	var stdout bytes.Buffer
 
-	cmd := exec.CommandContext(ctx, c.executable, args...)
+	cmd := c.command(ctx, args...)
 	cmd.Stdout = &stdout
 
 	stderr, err := cmd.StderrPipe()
@@ -211,7 +213,7 @@ func (c *Client) runJSON(ctx context.Context, target any, args ...string) error 
 
 	var stdout, stderr bytes.Buffer
 
-	cmd := exec.CommandContext(ctx, c.executable, args...)
+	cmd := c.command(ctx, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -232,6 +234,17 @@ func (c *Client) runJSON(ctx context.Context, target any, args ...string) error 
 	}
 
 	return nil
+}
+
+// command prepares a launcher run that ctx interrupts. A killed launcher would
+// leave its lock marker in the deployment directory and block later commands,
+// while an interrupted one releases it.
+func (c *Client) command(ctx context.Context, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, c.executable, args...)
+	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+	cmd.WaitDelay = interruptGrace
+
+	return cmd
 }
 
 // readableLogLine turns a JSON log record, which the launcher writes when its

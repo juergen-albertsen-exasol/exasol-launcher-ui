@@ -1,7 +1,9 @@
 package launcher_test
 
 import (
+	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -259,4 +261,28 @@ plain text
 	}, lines)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ERROR start failed")
+}
+
+func TestCancellingInterruptsTheLauncher(t *testing.T) {
+	t.Parallel()
+
+	fake := launchertest.NewFake(t)
+	args := []string{"info", "--json", "--deployment-dir", "/deployments/default"}
+	fake.Respond(`{}`, args...)
+	fake.Hold(args...)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := launcher.New(fake.Executable).Info(ctx, "/deployments/default")
+		done <- err
+	}()
+
+	require.Eventually(t, func() bool { return len(fake.Calls()) == 1 },
+		5*time.Second, 10*time.Millisecond)
+	cancel()
+
+	require.Error(t, <-done)
+	assert.Equal(t, []string{strings.Join(args, " ")}, fake.Interrupted())
 }

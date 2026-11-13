@@ -13,6 +13,7 @@ import (
 const script = `#!/bin/sh
 dir=$(dirname "$0")
 echo "$*" >> "$dir/calls"
+trap 'echo "$*" >> "$dir/interrupted"; exit 130' INT
 key=$(printf '%s' "$*" | tr -c 'A-Za-z0-9' '_')
 [ -f "$dir/$key.stderr" ] && cat "$dir/$key.stderr" >&2
 while [ -f "$dir/$key.hold" ]; do sleep 0.02; done
@@ -102,6 +103,22 @@ func (f *Fake) Fail(stderr string, exitCode int, args ...string) {
 	f.remove(args, ".stdout")
 	writeFile(f.t, f.path(args, ".stderr"), stderr, dataMode)
 	writeFile(f.t, f.path(args, ".exit"), strconv.Itoa(exitCode), dataMode)
+}
+
+// Interrupted returns the argument lists of the runs that received SIGINT.
+func (f *Fake) Interrupted() []string {
+	f.t.Helper()
+
+	content, err := os.ReadFile(filepath.Join(f.dir, "interrupted"))
+	if os.IsNotExist(err) {
+		return nil
+	}
+
+	if err != nil {
+		f.t.Fatal(err)
+	}
+
+	return strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
 }
 
 // Calls returns the argument lists the fake was run with, joined by spaces.

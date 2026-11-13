@@ -127,7 +127,7 @@ func (e *LauncherError) Error() string {
 func (c *Client) run(ctx context.Context, args ...string) error {
 	var stderr bytes.Buffer
 
-	cmd := exec.CommandContext(ctx, c.executable, args...)
+	cmd := c.command(ctx, args...)
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
