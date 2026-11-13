@@ -4,6 +4,8 @@ import {
   Configuration,
   DeploymentDetails,
   DeploymentSummary,
+  McpClient,
+  McpInstructions,
   Operation,
   OperationKind,
   PingResult,
@@ -35,6 +37,28 @@ export interface LocalApiFixture {
   /** Messages with which the API refuses to list a deployment's sidecars. */
   sidecarRefusals?: { [name: string]: string };
 }
+
+export const MCP_CLIENTS: McpClient[] = [
+  { id: 'claude-code', name: 'Claude Code' },
+  { id: 'claude-desktop', name: 'Claude Desktop' },
+  { id: 'cursor', name: 'Cursor' },
+];
+
+export const mcpInstructions = (client: string): McpInstructions =>
+  client === 'cursor'
+    ? {
+        id: 'cursor',
+        name: 'Cursor',
+        url: 'http://127.0.0.1:4896/mcp',
+        file: '~/.cursor/mcp.json',
+        content: '{\n  "mcpServers": {\n    "exasol-personal": { "url": "http://127.0.0.1:4896/mcp" }\n  }\n}\n',
+      }
+    : {
+        id: client,
+        name: MCP_CLIENTS.find(entry => entry.id === client)?.name ?? client,
+        url: 'http://127.0.0.1:4896/mcp',
+        command: 'claude mcp add --transport http --scope user exasol-personal http://127.0.0.1:4896/mcp',
+      };
 
 const conflict = (detail: string) =>
   throwError(() => new HttpErrorResponse({ status: 409, error: { title: 'Conflict', detail } }));
@@ -120,6 +144,8 @@ export const mockLocalApi = (fixture: LocalApiFixture) => ({
     const refusal = fixture.sidecarRefusals?.[name];
     return refusal ? conflict(refusal) : of(fixture.sidecars?.[name] ?? defaultSidecars());
   }),
+  listMcpClients: jest.fn(() => of(MCP_CLIENTS)),
+  getMcpInstructions: jest.fn((name: string, client: string) => of(mcpInstructions(client))),
   pingDeployment: jest.fn((name: string) => of(fixture.pings?.[name] ?? { status: 'reachable', round_trip_ms: 5 })),
 });
 

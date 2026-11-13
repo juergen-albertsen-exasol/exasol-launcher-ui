@@ -5,6 +5,8 @@ import {
   Configuration,
   DeploymentDetails,
   DeploymentSummary,
+  McpClient,
+  McpInstructions,
   Operation,
   OperationKind,
   OptionValue,
@@ -67,6 +69,18 @@ export class LocalApiService {
 
   listSidecars(name: string): Observable<Sidecar[]> {
     return this.http.get<Sidecar[]>(`${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/sidecars`);
+  }
+
+  listMcpClients(name: string): Observable<McpClient[]> {
+    return this.http.get<McpClient[]>(this.mcpClientsPath(name));
+  }
+
+  getMcpInstructions(name: string, client: string): Observable<McpInstructions> {
+    return this.http.get<McpInstructions>(`${this.mcpClientsPath(name)}/${encodeURIComponent(client)}`);
+  }
+
+  private mcpClientsPath(name: string): string {
+    return `${API_BASE_PATH}/deployments/${encodeURIComponent(name)}/mcp/clients`;
   }
 
   listOperations(): Observable<Operation[]> {

@@ -1,6 +1,7 @@
 import { ActivatedRouteSnapshot, Route, withRouterConfig } from '@angular/router';
 import { NavItem } from '@exasol/ui-common';
 import { PageDeploymentsComponent } from './pages/page-deployments/page-deployments.component';
+import { PageMcpComponent } from './pages/page-mcp/page-mcp.component';
 import { PageOverviewComponent } from './pages/page-overview/page-overview.component';
 import { PageSettingsComponent } from './pages/page-settings/page-settings.component';
 import { PageSidecarsComponent } from './pages/page-sidecars/page-sidecars.component';
@@ -13,6 +14,7 @@ export const LocalRoutes = {
 export const DeploymentPage = {
   OVERVIEW: 'overview',
   SIDECARS: 'sidecars',
+  MCP: 'mcp',
   SETTINGS: 'settings',
 } as const;
 export type DeploymentPage = (typeof DeploymentPage)[keyof typeof DeploymentPage];
@@ -39,6 +41,11 @@ export const APP_NAV_ITEMS: { [key: string]: NavItem } = {
     path: '',
     faIcon: ['fa-cubes'],
     text: 'Sidecars',
+  },
+  [DeploymentPage.MCP]: {
+    path: '',
+    faIcon: ['fa-robot'],
+    text: 'MCP server',
   },
   [DeploymentPage.SETTINGS]: {
     path: '',
@@ -78,6 +85,7 @@ export const appRoutes: Route[] = [
     children: [
       page(DeploymentPage.OVERVIEW, PageOverviewComponent),
       page(DeploymentPage.SIDECARS, PageSidecarsComponent),
+      page(DeploymentPage.MCP, PageMcpComponent),
       page(DeploymentPage.SETTINGS, PageSettingsComponent),
       { path: '', redirectTo: DeploymentPage.OVERVIEW, pathMatch: 'full' },
     ],

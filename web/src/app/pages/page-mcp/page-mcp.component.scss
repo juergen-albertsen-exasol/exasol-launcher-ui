@@ -1,0 +1,223 @@
+@import 'colors';
+@import 'panels';
+
+.mcp {
+  gap: 24px;
+  padding-top: 24px;
+
+  // The Administration UI's item card, as the overview draws the deployment.
+  &__card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px;
+    min-height: 120px;
+    padding: 12px 16px 12px 15px;
+    border-left: 6px solid var(--primary-accent);
+    border-right: 6px solid var(--primary-accent);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    box-shadow:
+      0 1px 4px -2px #142039,
+      -1px -1px 2px -2px #9aa4b7;
+  }
+
+  &__icon {
+    flex: 0 0 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    border-radius: 100%;
+    background-color: #e7edfd;
+    color: #5b76f6;
+    font-size: 1.25rem;
+  }
+
+  &__identity {
+    display: flex;
+    flex: 1 1 16rem;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__state {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  &__title {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  &__description {
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+  }
+
+  &__aside {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+  }
+
+  &__health {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+
+    &--ok {
+      color: var(--primary-accent);
+    }
+
+    &--error {
+      color: $red;
+    }
+  }
+
+  &__disable {
+    @include outline-button;
+  }
+
+  &__panel {
+    @include detail-panel;
+  }
+
+  &__box {
+    @include info-box;
+  }
+
+  &__code {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-primary);
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+    font-size: 0.81rem;
+    overflow-wrap: anywhere;
+
+    &--block {
+      align-items: flex-start;
+    }
+  }
+
+  &__content {
+    margin: 0;
+    font: inherit;
+    white-space: pre-wrap;
+  }
+
+  &__copy {
+    flex: 0 0 auto;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary-accent);
+    cursor: pointer;
+
+    exa-clipboard-copy {
+      pointer-events: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #2e6fee;
+      outline-offset: 3px;
+    }
+  }
+
+  &__health-error {
+    margin: 10px 0 0;
+    overflow-wrap: anywhere;
+  }
+
+  &__health-error-label {
+    color: $red;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 320px;
+    margin-bottom: 12px;
+  }
+
+  &__label {
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+  }
+
+  &__select {
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1rem;
+  }
+
+  &__lead {
+    margin: 0 0 8px;
+  }
+
+  &__file {
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+  }
+
+  &__note {
+    margin: 10px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.81rem;
+  }
+
+  &__banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1px solid var(--frame-color);
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+  }
+
+  &__info-icon {
+    color: var(--primary-accent);
+  }
+
+  &__failure {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1px solid $red;
+    border-radius: 4px;
+    background-color: var(--background-secondary);
+    overflow-wrap: anywhere;
+
+    i {
+      color: $red;
+    }
+  }
+
+  &__message {
+    color: var(--text-secondary);
+
+    &--error {
+      color: var(--text-primary);
+      overflow-wrap: anywhere;
+    }
+  }
+}

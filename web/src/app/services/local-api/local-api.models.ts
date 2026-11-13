@@ -129,3 +129,21 @@ export interface Sidecar {
   restart_required: boolean;
   endpoints: SidecarEndpoint[];
 }
+
+export const MCP_SIDECAR = 'mcp';
+
+export interface McpClient {
+  id: string;
+  name: string;
+}
+
+/** Registers the MCP server with a client, by running `command` or by adding `content` to `file`. */
+export interface McpInstructions {
+  id: string;
+  name: string;
+  url: string;
+  command?: string;
+  file?: string;
+  content?: string;
+  note?: string;
+}

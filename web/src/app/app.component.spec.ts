@@ -87,7 +87,12 @@ describe('AppComponent', () => {
       const links = root.queryAll(By.css('.nav-content-wrapper a[href^="/deployments"]'));
       const active = root.queryAll(By.css('.nav-content-wrapper a.active'));
 
-      expect(links.map(link => link.nativeElement.textContent.trim())).toEqual(['Overview', 'Sidecars', 'Settings']);
+      expect(links.map(link => link.nativeElement.textContent.trim())).toEqual([
+        'Overview',
+        'Sidecars',
+        'MCP server',
+        'Settings',
+      ]);
       expect(active.map(link => link.nativeElement.getAttribute('href'))).toEqual(['/deployments/test/overview']);
       expect(root.query(By.css('header h1')).nativeElement.textContent).toContain('Overview');
     });

@@ -47,6 +47,18 @@ describe('LocalApiService', () => {
     requests.forEach(request => request.flush({}));
   });
 
+  it('reads the MCP client instructions', () => {
+    service.listMcpClients('default').subscribe();
+    service.getMcpInstructions('default', 'claude-code').subscribe();
+
+    const requests = http.match(() => true);
+    expect(requests.map(request => [request.request.method, request.request.url])).toEqual([
+      ['GET', '/api/v1/deployments/default/mcp/clients'],
+      ['GET', '/api/v1/deployments/default/mcp/clients/claude-code'],
+    ]);
+    requests.forEach(request => request.flush({}));
+  });
+
   it('reads, patches, and resets the configuration', () => {
     service.getConfiguration('my deployment').subscribe();
     service.setConfiguration('default', { 'cpu-count': 4 }).subscribe();

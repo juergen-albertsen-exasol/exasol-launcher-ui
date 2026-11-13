@@ -1,0 +1,136 @@
+<div class="page-wrapper mcp">
+  @if (loadError(); as error) {
+  <p class="mcp__message mcp__message--error">{{ error }}</p>
+  } @else if (mcp(); as mcp) {
+  <section class="mcp__card" aria-label="MCP server">
+    <span class="mcp__icon"><i class="fa-solid fa-robot" aria-hidden="true"></i></span>
+    <div class="mcp__identity">
+      <span class="mcp__state">{{ mcp.enabled ? mcp.state : 'disabled' }}</span>
+      <h2 class="mcp__title">MCP server</h2>
+      @if (mcp.description) {
+      <span class="mcp__description">{{ mcp.description }}</span>
+      }
+    </div>
+    <div class="mcp__aside">
+      @if (mcp.enabled) { @switch (mcp.health) { @case (health.SERVING) {
+      <span class="mcp__health mcp__health--ok">healthy</span>
+      } @case (health.STARTING) {
+      <span class="mcp__health">starting</span>
+      } @case (health.FAILING) {
+      <span class="mcp__health mcp__health--error">
+        <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>health failing
+      </span>
+      } }
+      <button class="mcp__disable" type="button" [disabled]="!!running()" (click)="disable()">Disable…</button>
+      } @else {
+      <exa-button
+        class="mcp__enable"
+        [squared]="true"
+        [shorter]="true"
+        [disabled]="!!running()"
+        (clickButton)="enable()"
+      >
+        Enable
+      </exa-button>
+      }
+    </div>
+  </section>
+
+  @if (failed(); as operation) {
+  <p class="mcp__failure" role="alert">
+    <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+    <span>{{ runningLabel(operation) }} failed: {{ operation.error }}</span>
+  </p>
+  } @if (running(); as operation) {
+  <section class="mcp__panel" aria-label="Operation">
+    <exa-operation-progress [operation]="operation"></exa-operation-progress>
+  </section>
+  } @if (deploymentStopped()) {
+  <p class="mcp__banner" role="status">
+    <i class="fa-solid fa-circle-info mcp__info-icon" aria-hidden="true"></i>
+    <span>The deployment is not running. MCP server changes take effect when it starts.</span>
+  </p>
+  }
+
+  <section class="mcp__panel" aria-label="Details">
+    @if (mcp.enabled) {
+    <div class="mcp__box" data-label="Endpoint">
+      @if (endpoint(); as endpoint) {
+      <div class="mcp__code">
+        <span class="mcp__endpoint">{{ endpoint }}</span>
+        <ng-container
+          *ngTemplateOutlet="copyButton; context: { text: endpoint, label: 'Copy the endpoint' }"
+        ></ng-container>
+      </div>
+      } @else {
+      <p class="mcp__message">The MCP server reports its endpoint once it runs.</p>
+      } @if (mcp.health_error) {
+      <p class="mcp__health-error">
+        <span class="mcp__health-error-label">Health check failed:</span> {{ mcp.health_error }}
+      </p>
+      }
+    </div>
+
+    <div class="mcp__box" data-label="Connect a client">
+      @if (clients().length) {
+      <div class="mcp__field">
+        <label class="mcp__label" for="mcp-client">Client</label>
+        <select
+          class="mcp__select"
+          id="mcp-client"
+          [value]="selectedClient()"
+          (change)="choose($any($event.target).value)"
+        >
+          @for (client of clients(); track client.id) {
+          <option [value]="client.id" [selected]="client.id === selectedClient()">{{ client.name }}</option>
+          }
+        </select>
+      </div>
+      } @if (instructions(); as instructions) { @if (instructions.command) {
+      <p class="mcp__lead">Run this command to register the MCP server with {{ instructions.name }}:</p>
+      <div class="mcp__code">
+        <span class="mcp__command">{{ instructions.command }}</span>
+        <ng-container
+          *ngTemplateOutlet="copyButton; context: { text: instructions.command, label: 'Copy the command' }"
+        ></ng-container>
+      </div>
+      } @else {
+      <p class="mcp__lead">
+        Add this entry to <span class="mcp__file">{{ instructions.file }}</span> for {{ instructions.name }}, keeping
+        any servers already there:
+      </p>
+      <div class="mcp__code mcp__code--block">
+        <pre class="mcp__content">{{ instructions.content }}</pre>
+        <ng-container
+          *ngTemplateOutlet="copyButton; context: { text: instructions.content ?? '', label: 'Copy the entry' }"
+        ></ng-container>
+      </div>
+      } @if (instructions.note) {
+      <p class="mcp__note">{{ instructions.note }}</p>
+      } } @else if (instructionsError(); as error) {
+      <p class="mcp__message mcp__message--error">{{ error }}</p>
+      } @else {
+      <p class="mcp__message">Loading…</p>
+      }
+      <p class="mcp__note">
+        Exasol Local does not change the client's configuration. Other clients that support Streamable HTTP can use the
+        endpoint above.
+      </p>
+    </div>
+    } @else {
+    <p class="mcp__message">Enable the MCP server to connect AI clients to {{ name() }}.</p>
+    }
+  </section>
+  } @else if (loaded()) {
+  <p class="mcp__message">Deployment {{ name() }} offers no MCP server.</p>
+  } @else {
+  <p class="mcp__message">Loading…</p>
+  }
+</div>
+
+<!-- The design system's copy icon reacts to clicks only, so a button gives it keyboard access. -->
+<ng-template #copyButton let-text="text" let-label="label">
+  <button class="mcp__copy" type="button" [attr.aria-label]="label" (click)="copy.copyToClipboard()">
+    <exa-clipboard-copy #copy [whatToCopy]="text"></exa-clipboard-copy>
+  </button>
+</ng-template>
