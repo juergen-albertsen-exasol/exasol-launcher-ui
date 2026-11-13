@@ -24,7 +24,11 @@ import (
 
 const usageExitCode = 2
 
+// version is set by release builds with -ldflags "-X main.version=...".
+var version = "dev"
+
 type options struct {
+	version    bool
 	port       int
 	open       bool
 	exasol     string
@@ -60,6 +64,12 @@ func run(ctx context.Context, args []string, env environment) int {
 		return usageExitCode
 	}
 
+	if opts.version {
+		_, _ = fmt.Fprintf(env.stdout, "exasol-launcher-ui %s\n", version)
+
+		return 0
+	}
+
 	if err := serve(ctx, opts, env); err != nil {
 		_, _ = fmt.Fprintf(env.stderr, "Error: %v\n", err)
 
@@ -74,6 +84,7 @@ func parseOptions(args []string, stderr io.Writer) (options, error) {
 
 	flags := flag.NewFlagSet("exasol-launcher-ui", flag.ContinueOnError)
 	flags.SetOutput(stderr)
+	flags.BoolVar(&opts.version, "version", false, "print the version and exit")
 	flags.IntVar(&opts.port, "port", server.DefaultPort, "port to serve on, on 127.0.0.1")
 	flags.BoolVar(&opts.open, "open", false, "open the access URL in the default browser")
 	flags.StringVar(&opts.exasol, "exasol", launcher.DefaultExecutable,

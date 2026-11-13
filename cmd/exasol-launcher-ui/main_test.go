@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -321,4 +322,32 @@ func TestUnknownFlagFailsStartup(t *testing.T) {
 	})
 
 	assert.NotEqual(t, 0, exitCode)
+}
+
+func TestVersionPrintsDevForSourceBuilds(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+
+	exitCode := run(t.Context(), []string{
+		"--version", "--exasol", filepath.Join(t.TempDir(), "missing"),
+	}, environment{stdout: &stdout, stderr: io.Discard})
+
+	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, "exasol-launcher-ui dev\n", stdout.String())
+}
+
+func TestVersionPrintsTheReleaseVersion(t *testing.T) {
+	t.Parallel()
+
+	binary := filepath.Join(t.TempDir(), "exasol-launcher-ui")
+	build := exec.CommandContext(t.Context(), "go", "build",
+		"-ldflags", "-X main.version=0.1.0", "-o", binary, ".")
+	output, err := build.CombinedOutput()
+	require.NoError(t, err, string(output))
+
+	output, err = exec.CommandContext(t.Context(), binary, "--version").Output()
+
+	require.NoError(t, err)
+	assert.Equal(t, "exasol-launcher-ui 0.1.0\n", string(output))
 }
